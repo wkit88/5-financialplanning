@@ -1,7 +1,6 @@
 /*
- * Home page — integrates InputPanel, ResultsPanel, SavedScenarios, and CompareScenarios.
- * Save dialog appears after calculation. Load scenario populates inputs.
- * Compare mode shows side-by-side comparison of two selected scenarios.
+ * Home page — integrates InputPanel, ResultsPanel, SavedScenarios, CompareScenarios,
+ * and the AI Financial Planner chat panel.
  */
 
 import { useState, useCallback, useEffect, useRef } from "react";
@@ -9,6 +8,7 @@ import InputPanel, { type InputPanelRef } from "@/components/InputPanel";
 import ResultsPanel from "@/components/ResultsPanel";
 import SavedScenarios from "@/components/SavedScenarios";
 import CompareScenarios from "@/components/CompareScenarios";
+import AIChatPanel from "@/components/AIChatPanel";
 import {
   calculatePropertyPlan,
   type CalculatorInputs,
@@ -16,7 +16,7 @@ import {
 } from "@/lib/calculator";
 import { useScenarios, type SavedScenario } from "@/hooks/useScenarios";
 import { toast } from "sonner";
-import { Bookmark } from "lucide-react";
+import { Bookmark, Sparkles } from "lucide-react";
 
 export default function Home() {
   const [results, setResults] = useState<FullSimulationResult | null>(null);
@@ -26,6 +26,8 @@ export default function Home() {
   const [scenarioName, setScenarioName] = useState("");
   const [compareA, setCompareA] = useState<SavedScenario | null>(null);
   const [compareB, setCompareB] = useState<SavedScenario | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [hasCalculated, setHasCalculated] = useState(false);
   const inputPanelRef = useRef<InputPanelRef>(null);
   const compareRef = useRef<HTMLDivElement>(null);
 
@@ -57,6 +59,7 @@ export default function Home() {
     const result = calculatePropertyPlan(inputs);
     setResults(result);
     setLastInputs(inputs);
+    setHasCalculated(true);
   }, []);
 
   const handleLoadScenario = useCallback((inputs: CalculatorInputs) => {
@@ -78,7 +81,6 @@ export default function Home() {
 
   const handleDelete = useCallback((id: string) => {
     deleteScenario(id);
-    // If deleting a scenario that's in comparison, close comparison
     if (compareA?.id === id || compareB?.id === id) {
       setCompareA(null);
       setCompareB(null);
@@ -89,7 +91,6 @@ export default function Home() {
   const handleCompare = useCallback((a: SavedScenario, b: SavedScenario) => {
     setCompareA(a);
     setCompareB(b);
-    // Scroll to comparison after a brief delay for render
     setTimeout(() => {
       compareRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
@@ -121,6 +122,22 @@ export default function Home() {
               </p>
             </div>
           </div>
+          {/* AI button in header */}
+          <button
+            onClick={() => setChatOpen(true)}
+            className="
+              flex items-center gap-2 px-4 py-2 text-[13px] font-medium
+              text-white bg-gradient-to-r from-[#0071e3] to-[#5856d6]
+              rounded-full transition-all duration-200
+              shadow-[0_2px_8px_rgba(0,113,227,0.3)]
+              hover:shadow-[0_4px_16px_rgba(0,113,227,0.4)]
+              hover:-translate-y-[1px]
+              active:translate-y-0
+            "
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            AI Planner
+          </button>
         </div>
       </header>
 
@@ -142,22 +159,40 @@ export default function Home() {
           externalInputs={externalInputs}
         />
 
-        {/* Save Scenario Button */}
+        {/* Action Buttons Row */}
         {results && lastInputs && (
-          <div className="flex justify-center">
+          <div className="flex flex-wrap justify-center gap-3">
             {!showSaveDialog ? (
-              <button
-                onClick={() => setShowSaveDialog(true)}
-                className="
-                  flex items-center gap-2 px-6 py-2.5 text-[14px] font-medium
-                  text-[#0071e3] bg-[#0071e3]/5 hover:bg-[#0071e3]/10
-                  rounded-[10px] transition-all duration-200
-                  border border-[#0071e3]/15
-                "
-              >
-                <Bookmark className="w-4 h-4" />
-                Save This Scenario
-              </button>
+              <>
+                <button
+                  onClick={() => setShowSaveDialog(true)}
+                  className="
+                    flex items-center gap-2 px-6 py-2.5 text-[14px] font-medium
+                    text-[#0071e3] bg-[#0071e3]/5 hover:bg-[#0071e3]/10
+                    rounded-[10px] transition-all duration-200
+                    border border-[#0071e3]/15
+                  "
+                >
+                  <Bookmark className="w-4 h-4" />
+                  Save This Scenario
+                </button>
+                {hasCalculated && (
+                  <button
+                    onClick={() => setChatOpen(true)}
+                    className="
+                      flex items-center gap-2 px-6 py-2.5 text-[14px] font-medium
+                      text-white bg-gradient-to-r from-[#0071e3] to-[#5856d6]
+                      rounded-[10px] transition-all duration-200
+                      shadow-[0_2px_8px_rgba(0,113,227,0.25)]
+                      hover:shadow-[0_4px_12px_rgba(0,113,227,0.35)]
+                      hover:-translate-y-[1px]
+                    "
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Ask AI Financial Planner
+                  </button>
+                )}
+              </>
             ) : (
               <div className="apple-card p-5 w-full max-w-md animate-in fade-in slide-in-from-bottom-2 duration-200">
                 <p className="text-[15px] font-medium text-[#1d1d1f] mb-3">Name your scenario</p>
@@ -236,6 +271,33 @@ export default function Home() {
           </p>
         </div>
       </footer>
+
+      {/* Floating AI Button (bottom-right) */}
+      <button
+        onClick={() => setChatOpen(true)}
+        className="
+          fixed bottom-6 right-6 z-30
+          w-14 h-14 rounded-full
+          bg-gradient-to-br from-[#0071e3] to-[#5856d6]
+          flex items-center justify-center
+          shadow-[0_4px_20px_rgba(0,113,227,0.4)]
+          hover:shadow-[0_6px_28px_rgba(0,113,227,0.5)]
+          hover:scale-105
+          active:scale-95
+          transition-all duration-200
+        "
+        title="Ask AI Financial Planner"
+      >
+        <Sparkles className="w-6 h-6 text-white" />
+      </button>
+
+      {/* AI Chat Panel */}
+      <AIChatPanel
+        isOpen={chatOpen}
+        onClose={() => setChatOpen(false)}
+        results={results}
+        inputs={lastInputs}
+      />
     </div>
   );
 }
