@@ -96,6 +96,11 @@ export default function CompareScenarios({ scenarioA, scenarioB, onClose }: Comp
       a: fullA.annualRentalIncome,
       b: fullB.annualRentalIncome,
     },
+    {
+      label: "Annual Expense/Property",
+      a: fullA.annualExpensePerProperty,
+      b: fullB.annualExpensePerProperty,
+    },
   ], [scenarioA, scenarioB, fullA, fullB]);
 
   // Input comparison rows
@@ -108,7 +113,8 @@ export default function CompareScenarios({ scenarioA, scenarioB, onClose }: Comp
     { label: "Interest Rate", a: scenarioA.inputs.interestRate, b: scenarioB.inputs.interestRate, suffix: "%" },
     { label: "Buy Interval", a: scenarioA.inputs.buyInterval, b: scenarioB.inputs.buyInterval, suffix: " yr", isCount: true },
     { label: "Loan Tenure", a: scenarioA.inputs.loanTenure, b: scenarioB.inputs.loanTenure, suffix: " yr", isCount: true },
-  ], [scenarioA, scenarioB]);
+    { label: "Annual Expense/Property", a: fullA.annualExpensePerProperty, b: fullB.annualExpensePerProperty, prefix: "RM " },
+  ], [scenarioA, scenarioB, fullA, fullB]);
 
   // Equity Growth overlay chart
   const equityChartData = useMemo(() => {

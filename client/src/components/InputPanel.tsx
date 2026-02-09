@@ -2,6 +2,7 @@
  * Apple-level UI/UX: floating shadow cards, filled inputs, generous spacing,
  * refined typography hierarchy, tactile button with hover lift.
  * Supports external inputs (for loading saved scenarios).
+ * Includes expense input (fixed RM or % of purchase price).
  */
 
 import { useState, useCallback, useEffect, useImperativeHandle, forwardRef } from "react";
@@ -52,6 +53,8 @@ const DEFAULT_INPUTS: CalculatorInputs = {
   buyInterval: 1,
   startingYear: 2026,
   loanTenure: 30,
+  expenseType: "percentage",
+  expenseValue: 0,
 };
 
 const InputPanel = forwardRef<InputPanelRef, InputPanelProps>(
@@ -59,9 +62,15 @@ const InputPanel = forwardRef<InputPanelRef, InputPanelProps>(
     const [inputs, setInputs] = useState<CalculatorInputs>(DEFAULT_INPUTS);
 
     // When externalInputs change (scenario loaded), update local state
+    // Handle backward compatibility for saved scenarios without expense fields
     useEffect(() => {
       if (externalInputs) {
-        setInputs(externalInputs);
+        setInputs({
+          ...DEFAULT_INPUTS,
+          ...externalInputs,
+          expenseType: externalInputs.expenseType || "percentage",
+          expenseValue: externalInputs.expenseValue ?? 0,
+        });
       }
     }, [externalInputs]);
 
@@ -70,7 +79,7 @@ const InputPanel = forwardRef<InputPanelRef, InputPanelProps>(
     }), [inputs]);
 
     const updateInput = useCallback(
-      (key: keyof CalculatorInputs, value: number | boolean) => {
+      (key: keyof CalculatorInputs, value: number | boolean | string) => {
         setInputs((prev) => ({ ...prev, [key]: value }));
       },
       []
@@ -194,6 +203,60 @@ const InputPanel = forwardRef<InputPanelRef, InputPanelProps>(
                   min={0} max={10} step={0.1}
                   className="apple-input w-full"
                 />
+              </div>
+
+              {/* Annual Expense */}
+              <div className="pt-2 border-t border-[#f5f5f7]">
+                <FieldLabel tip="Annual expenses per property: maintenance, tax, insurance, management fees. Set to 0 to exclude.">
+                  Annual Expense / Property
+                </FieldLabel>
+                {/* Type toggle */}
+                <div className="flex rounded-[8px] bg-[#f5f5f7] p-0.5 mb-3">
+                  <button
+                    type="button"
+                    onClick={() => updateInput("expenseType", "fixed")}
+                    className={`
+                      flex-1 py-1.5 text-[13px] font-medium rounded-[7px] transition-all duration-200
+                      ${inputs.expenseType === "fixed"
+                        ? "bg-white text-[#1d1d1f] shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+                        : "text-[#86868b] hover:text-[#1d1d1f]"
+                      }
+                    `}
+                  >
+                    Fixed (RM)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateInput("expenseType", "percentage")}
+                    className={`
+                      flex-1 py-1.5 text-[13px] font-medium rounded-[7px] transition-all duration-200
+                      ${inputs.expenseType === "percentage"
+                        ? "bg-white text-[#1d1d1f] shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+                        : "text-[#86868b] hover:text-[#1d1d1f]"
+                      }
+                    `}
+                  >
+                    % of Price
+                  </button>
+                </div>
+                <input
+                  type="number"
+                  value={inputs.expenseValue}
+                  onChange={(e) => updateInput("expenseValue", parseFloat(e.target.value) || 0)}
+                  min={0}
+                  max={inputs.expenseType === "percentage" ? 20 : 100000}
+                  step={inputs.expenseType === "percentage" ? 0.5 : 1000}
+                  placeholder={inputs.expenseType === "fixed" ? "e.g. 5000" : "e.g. 2"}
+                  className="apple-input w-full"
+                />
+                {inputs.expenseValue > 0 && (
+                  <p className="text-[12px] text-[#86868b] mt-1.5">
+                    = RM {(inputs.expenseType === "fixed"
+                      ? inputs.expenseValue
+                      : inputs.purchasePrice * (inputs.expenseValue / 100)
+                    ).toLocaleString("en-MY", { maximumFractionDigits: 0 })}/year per property
+                  </p>
+                )}
               </div>
             </div>
           </div>

@@ -1,6 +1,7 @@
 // ============================================================
 // PropertyLab - Net Equity Calculator Engine
-// All formulas preserved exactly from the original HTML version
+// All formulas preserved from the original HTML version
+// + Annual expense per property (fixed RM or % of purchase price)
 // ============================================================
 
 export interface CalculatorInputs {
@@ -15,6 +16,8 @@ export interface CalculatorInputs {
   buyInterval: number; // years between purchases
   startingYear: number;
   loanTenure: number; // years
+  expenseType: "fixed" | "percentage"; // fixed RM or % of purchase price
+  expenseValue: number; // RM amount or percentage (e.g., 2 for 2%)
 }
 
 export interface YearlyData {
@@ -28,6 +31,7 @@ export interface YearlyData {
   cumulativeCashFlow: number;
   annualRentalIncome: number;
   annualMortgagePayment: number;
+  annualExpense: number;
 }
 
 export interface SimulationResult {
@@ -47,6 +51,7 @@ export interface FullSimulationResult {
   loanAmount: number;
   marketValue: number;
   annualRentalIncome: number;
+  annualExpensePerProperty: number;
 }
 
 /**
@@ -103,11 +108,12 @@ function calculateLoanBalance(
 
 /**
  * Simulate portfolio growth over a given number of years.
- * Exactly replicates the simulatePortfolio function from the original HTML.
+ * Cash flow = Rental Income - Mortgage Payment - Annual Expense (per property)
+ * Net Equity = Total Asset Value - Total Loan Balance + Cumulative Cash Flow
  */
 function simulatePortfolio(
   years: number,
-  purchasePrice: number,
+  _purchasePrice: number,
   marketValue: number,
   loanAmount: number,
   monthlyPayment: number,
@@ -117,7 +123,8 @@ function simulatePortfolio(
   buyInterval: number,
   maxProperties: number,
   _belowMarketValue: boolean,
-  loanTenure: number
+  loanTenure: number,
+  annualExpensePerProperty: number
 ): SimulationResult {
   let propertiesOwned = 0;
   let totalAssetValue = 0;
@@ -125,28 +132,23 @@ function simulatePortfolio(
   let cumulativeCashFlow = 0;
 
   for (let year = 1; year <= years; year++) {
-    // Buy new properties if it's time
     if (year % buyInterval === 1 || buyInterval === 1) {
       if (propertiesOwned < maxProperties) {
         propertiesOwned++;
       }
     }
 
-    // Reset values for this year
     totalAssetValue = 0;
     totalLoanBalance = 0;
     let annualCashFlow = 0;
 
-    // Calculate values for each property
     for (let i = 0; i < propertiesOwned; i++) {
       const propertyAge = year - i * buyInterval;
       if (propertyAge > 0) {
-        // Appreciate from MARKET VALUE
         const propertyValue =
           marketValue * Math.pow(1 + appreciationRate, propertyAge);
         totalAssetValue += propertyValue;
 
-        // Loan balance for this property
         const loanBalance = calculateLoanBalance(
           loanAmount,
           monthlyPayment,
@@ -156,18 +158,17 @@ function simulatePortfolio(
         );
         totalLoanBalance += loanBalance;
 
-        // Annual cash flow (FIXED rental income minus mortgage)
+        // Cash flow = rental - mortgage - expense
         const annualMortgagePayment = monthlyPayment * 12;
-        const propertyCashFlow = annualRentalIncome - annualMortgagePayment;
+        const propertyCashFlow =
+          annualRentalIncome - annualMortgagePayment - annualExpensePerProperty;
         annualCashFlow += propertyCashFlow;
       }
     }
 
-    // Add this year's cash flow to cumulative total
     cumulativeCashFlow += annualCashFlow;
   }
 
-  // FINAL net equity WITHOUT double-counting instant equity
   const netEquity = totalAssetValue - totalLoanBalance + cumulativeCashFlow;
 
   return {
@@ -181,11 +182,10 @@ function simulatePortfolio(
 
 /**
  * Generate year-by-year data for charts and tables.
- * Exactly replicates the chart/table generation logic from the original HTML.
  */
 function generateYearlyData(
   years: number,
-  purchasePrice: number,
+  _purchasePrice: number,
   marketValue: number,
   loanAmount: number,
   monthlyPayment: number,
@@ -196,14 +196,14 @@ function generateYearlyData(
   maxProperties: number,
   startingYear: number,
   _belowMarketValue: boolean,
-  loanTenure: number
+  loanTenure: number,
+  annualExpensePerProperty: number
 ): YearlyData[] {
   const data: YearlyData[] = [];
   let propertiesOwned = 0;
   let cumulativeCashFlow = 0;
 
   for (let year = 0; year <= years; year++) {
-    // Buy new properties if it's time
     if (year > 0 && (year % buyInterval === 1 || buyInterval === 1)) {
       if (propertiesOwned < maxProperties) {
         propertiesOwned++;
@@ -214,16 +214,13 @@ function generateYearlyData(
     let totalLoanBalance = 0;
     let annualCashFlow = 0;
 
-    // Calculate values for each property owned
     for (let i = 0; i < propertiesOwned; i++) {
       const propertyAge = year - i * buyInterval;
       if (propertyAge >= 0) {
-        // Appreciate from MARKET VALUE
         const propertyValue =
           marketValue * Math.pow(1 + appreciationRate, propertyAge);
         totalAssetValue += propertyValue;
 
-        // Loan balance for this property
         const loanBalance = calculateLoanBalance(
           loanAmount,
           monthlyPayment,
@@ -233,22 +230,28 @@ function generateYearlyData(
         );
         totalLoanBalance += loanBalance;
 
-        // Annual cash flow (only after purchase year)
         if (propertyAge > 0) {
           const annualMortgagePaymentVal = monthlyPayment * 12;
+          // Cash flow = rental - mortgage - expense
           const propertyCashFlow =
-            annualRentalIncome - annualMortgagePaymentVal;
+            annualRentalIncome - annualMortgagePaymentVal - annualExpensePerProperty;
           annualCashFlow += propertyCashFlow;
         }
       }
     }
 
-    // Add this year's cash flow to cumulative total (except year 0)
     if (year > 0) {
       cumulativeCashFlow += annualCashFlow;
     }
 
     const netEquity = totalAssetValue - totalLoanBalance + cumulativeCashFlow;
+
+    // Count active properties (those with propertyAge > 0) for expense display
+    let activeProperties = 0;
+    for (let i = 0; i < propertiesOwned; i++) {
+      const propertyAge = year - i * buyInterval;
+      if (propertyAge > 0) activeProperties++;
+    }
 
     data.push({
       year,
@@ -261,6 +264,7 @@ function generateYearlyData(
       cumulativeCashFlow,
       annualRentalIncome: propertiesOwned * annualRentalIncome,
       annualMortgagePayment: propertiesOwned * monthlyPayment * 12,
+      annualExpense: activeProperties * annualExpensePerProperty,
     });
   }
 
@@ -286,6 +290,8 @@ export function calculatePropertyPlan(
     buyInterval,
     startingYear,
     loanTenure,
+    expenseType,
+    expenseValue,
   } = inputs;
 
   const appreciationRate = appreciationPct / 100;
@@ -293,7 +299,7 @@ export function calculatePropertyPlan(
   const interestRate = interestPct / 100;
   const discountRate = belowMarketValue ? discountPercentage / 100 : 0;
 
-  // CORRECTED LOGIC: Calculate market value from purchase price
+  // Calculate market value from purchase price
   const marketValue = belowMarketValue
     ? purchasePrice / (1 - discountRate)
     : purchasePrice;
@@ -311,28 +317,35 @@ export function calculatePropertyPlan(
   // Calculate FIXED annual rental income (based on original property price)
   const annualRentalIncome = purchasePrice * rentalYield;
 
+  // Calculate annual expense per property
+  const annualExpensePerProperty =
+    expenseType === "fixed"
+      ? expenseValue
+      : purchasePrice * (expenseValue / 100);
+
   // Calculate net equity for 10, 20, and 30 years
   const results10 = simulatePortfolio(
     10, purchasePrice, marketValue, loanAmount, monthlyPayment,
     appreciationRate, annualRentalIncome, interestRate, buyInterval,
-    maxProperties, belowMarketValue, loanTenure
+    maxProperties, belowMarketValue, loanTenure, annualExpensePerProperty
   );
   const results20 = simulatePortfolio(
     20, purchasePrice, marketValue, loanAmount, monthlyPayment,
     appreciationRate, annualRentalIncome, interestRate, buyInterval,
-    maxProperties, belowMarketValue, loanTenure
+    maxProperties, belowMarketValue, loanTenure, annualExpensePerProperty
   );
   const results30 = simulatePortfolio(
     30, purchasePrice, marketValue, loanAmount, monthlyPayment,
     appreciationRate, annualRentalIncome, interestRate, buyInterval,
-    maxProperties, belowMarketValue, loanTenure
+    maxProperties, belowMarketValue, loanTenure, annualExpensePerProperty
   );
 
   // Generate year-by-year data for charts and tables
   const yearlyData = generateYearlyData(
     30, purchasePrice, marketValue, loanAmount, monthlyPayment,
     appreciationRate, annualRentalIncome, interestRate, buyInterval,
-    maxProperties, startingYear, belowMarketValue, loanTenure
+    maxProperties, startingYear, belowMarketValue, loanTenure,
+    annualExpensePerProperty
   );
 
   return {
@@ -344,6 +357,7 @@ export function calculatePropertyPlan(
     loanAmount,
     marketValue,
     annualRentalIncome,
+    annualExpensePerProperty,
   };
 }
 

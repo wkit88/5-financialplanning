@@ -118,34 +118,46 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
   // Cash Flow Chart
   const cashflowChartData = useMemo(() => {
     const yearlySlice = results.yearlyData.slice(1);
+    const hasExpense = results.annualExpensePerProperty > 0;
+    const datasets: any[] = [
+      {
+        label: "Rental Income",
+        data: yearlySlice.map((d) => d.annualRentalIncome),
+        backgroundColor: "rgba(52, 199, 89, 0.7)",
+        borderColor: "#34c759",
+        borderWidth: 0,
+        borderRadius: 4,
+      },
+      {
+        label: "Mortgage Payments",
+        data: yearlySlice.map((d) => d.annualMortgagePayment),
+        backgroundColor: "rgba(255, 59, 48, 0.7)",
+        borderColor: "#ff3b30",
+        borderWidth: 0,
+        borderRadius: 4,
+      },
+    ];
+    if (hasExpense) {
+      datasets.push({
+        label: "Annual Expenses",
+        data: yearlySlice.map((d) => d.annualExpense),
+        backgroundColor: "rgba(255, 149, 0, 0.7)",
+        borderColor: "#ff9500",
+        borderWidth: 0,
+        borderRadius: 4,
+      });
+    }
+    datasets.push({
+      label: "Net Cash Flow",
+      data: yearlySlice.map((d) => d.annualCashFlow),
+      backgroundColor: "rgba(0, 113, 227, 0.7)",
+      borderColor: "#0071e3",
+      borderWidth: 0,
+      borderRadius: 4,
+    });
     return {
       labels: yearlySlice.map((_, i) => String(i + 1)),
-      datasets: [
-        {
-          label: "Rental Income",
-          data: yearlySlice.map((d) => d.annualRentalIncome),
-          backgroundColor: "rgba(52, 199, 89, 0.7)",
-          borderColor: "#34c759",
-          borderWidth: 0,
-          borderRadius: 4,
-        },
-        {
-          label: "Mortgage Payments",
-          data: yearlySlice.map((d) => d.annualMortgagePayment),
-          backgroundColor: "rgba(255, 59, 48, 0.7)",
-          borderColor: "#ff3b30",
-          borderWidth: 0,
-          borderRadius: 4,
-        },
-        {
-          label: "Net Cash Flow",
-          data: yearlySlice.map((d) => d.annualCashFlow),
-          backgroundColor: "rgba(0, 113, 227, 0.7)",
-          borderColor: "#0071e3",
-          borderWidth: 0,
-          borderRadius: 4,
-        },
-      ],
+      datasets,
     };
   }, [results]);
 
@@ -290,6 +302,7 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
                     <th className="text-right py-3 px-3 text-[11px] font-semibold text-[#86868b] uppercase tracking-wider border-b-2 border-[#e5e5ea]">Asset Value</th>
                     <th className="text-right py-3 px-3 text-[11px] font-semibold text-[#86868b] uppercase tracking-wider border-b-2 border-[#e5e5ea]">Loan Balance</th>
                     <th className="text-right py-3 px-3 text-[11px] font-semibold text-[#86868b] uppercase tracking-wider border-b-2 border-[#e5e5ea]">Net Equity</th>
+                    <th className="text-right py-3 px-3 text-[11px] font-semibold text-[#86868b] uppercase tracking-wider border-b-2 border-[#e5e5ea]">Expenses</th>
                     <th className="text-right py-3 px-3 text-[11px] font-semibold text-[#86868b] uppercase tracking-wider border-b-2 border-[#e5e5ea]">Annual Cash Flow</th>
                   </tr>
                 </thead>
@@ -301,6 +314,7 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
                       <td className="py-2.5 px-3 text-[13px] text-right text-[#1d1d1f]">RM {formatNumber(row.totalAssetValue.toFixed(0))}</td>
                       <td className="py-2.5 px-3 text-[13px] text-right text-[#ff3b30]">RM {formatNumber(row.totalLoanBalance.toFixed(0))}</td>
                       <td className="py-2.5 px-3 text-[13px] text-right font-semibold text-[#0071e3]">RM {formatNumber(row.netEquity.toFixed(0))}</td>
+                      <td className="py-2.5 px-3 text-[13px] text-right text-[#ff9500]">RM {formatNumber(row.annualExpense.toFixed(0))}</td>
                       <td className={`py-2.5 px-3 text-[13px] text-right ${row.annualCashFlow >= 0 ? "text-[#34c759]" : "text-[#ff3b30]"}`}>
                         RM {formatNumber(row.annualCashFlow.toFixed(0))}
                       </td>
@@ -319,11 +333,11 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
                 <li className="flex gap-2.5"><span className="text-[#0071e3] shrink-0">•</span>Rental income is FIXED at original property price × rental yield (no inflation adjustment)</li>
                 <li className="flex gap-2.5"><span className="text-[#0071e3] shrink-0">•</span>Property appreciation is compounded annually</li>
                 <li className="flex gap-2.5"><span className="text-[#0071e3] shrink-0">•</span>Loan interest rate remains constant throughout the loan tenure</li>
-                <li className="flex gap-2.5"><span className="text-[#0071e3] shrink-0">•</span>No additional expenses beyond mortgage payments</li>
+                <li className="flex gap-2.5"><span className="text-[#0071e3] shrink-0">•</span>Annual expenses per property{results.annualExpensePerProperty > 0 ? `: RM ${formatNumber(results.annualExpensePerProperty.toFixed(0))}/year` : " not included (set to 0)"}</li>
                 <li className="flex gap-2.5"><span className="text-[#0071e3] shrink-0">•</span>Properties are purchased at regular intervals until maximum is reached</li>
                 <li className="flex gap-2.5"><span className="text-[#0071e3] shrink-0">•</span>All properties have the same price and characteristics</li>
                 <li className="flex gap-2.5"><span className="text-[#0071e3] shrink-0">•</span>No property sales during the investment period</li>
-                <li className="flex gap-2.5"><span className="text-[#0071e3] shrink-0">•</span>Cash flow = Rental Income − Mortgage Installment (no other expenses)</li>
+                <li className="flex gap-2.5"><span className="text-[#0071e3] shrink-0">•</span>Cash flow = Rental Income − Mortgage Installment − Annual Expenses (per property)</li>
               </ul>
             </div>
           )}
@@ -336,8 +350,9 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
                 <p><strong className="text-[#1d1d1f]">Property Value Growth:</strong> Each property appreciates annually at the specified rate.</p>
                 <p><strong className="text-[#1d1d1f]">Rental Income:</strong> FIXED at Original Price × Rental Yield (does not increase with property value)</p>
                 <p><strong className="text-[#1d1d1f]">Mortgage Calculation:</strong> Fixed monthly payments calculated using standard amortization formula.</p>
-                <p><strong className="text-[#1d1d1f]">Cash Flow:</strong> Annual rental income minus annual mortgage payments.</p>
-                <p><strong className="text-[#1d1d1f]">Net Equity:</strong> Total property values minus total loan balances plus cumulative cash flow.</p>
+                <p><strong className="text-[#1d1d1f]">Cash Flow:</strong> Annual rental income minus annual mortgage payments minus annual expenses (per property).</p>
+                <p><strong className="text-[#1d1d1f]">Annual Expense:</strong> {results.annualExpensePerProperty > 0 ? `RM ${formatNumber(results.annualExpensePerProperty.toFixed(0))} per property per year (covers maintenance, tax, insurance, management fees).` : "Not included (set to 0)."}</p>
+                <p><strong className="text-[#1d1d1f]">Net Equity:</strong> Total property values minus total loan balances plus cumulative cash flow. Since cash flow already deducts expenses, net equity naturally reflects the impact of all costs.</p>
                 <p><strong className="text-[#1d1d1f]">Below Market Value:</strong> When enabled, you purchase at a discount but properties appreciate from full market value.</p>
               </div>
             </div>

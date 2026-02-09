@@ -45,6 +45,8 @@ export default function Home() {
       buyInterval: 1,
       startingYear: 2026,
       loanTenure: 30,
+      expenseType: "percentage" as const,
+      expenseValue: 0,
     };
     const result = calculatePropertyPlan(defaultInputs);
     setResults(result);
