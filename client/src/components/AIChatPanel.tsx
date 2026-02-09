@@ -1,6 +1,7 @@
 /*
- * AI Financial Planner — inline chat section.
+ * AI Financial Planner — slide-in chat panel from the right.
  * Auto-triggers analysis on calculate. Shows recommendation chips after each response.
+ * Includes goal-based reverse planner mode.
  * Exposed via ref so parent can trigger analysis externally.
  * Reports loading/ready status to parent via onStatusChange callback.
  */
@@ -16,9 +17,8 @@ import {
 import { trpc } from "@/lib/trpc";
 import type { FullSimulationResult, CalculatorInputs } from "@/lib/calculator";
 import { formatNumber } from "@/lib/calculator";
-import { Sparkles, Send, RotateCcw } from "lucide-react";
+import { Sparkles, Send, RotateCcw, Target } from "lucide-react";
 import { Streamdown } from "streamdown";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 type Message = {
   role: "system" | "user" | "assistant";
@@ -35,6 +35,7 @@ interface AIChatPanelProps {
   results: FullSimulationResult | null;
   inputs: CalculatorInputs | null;
   onStatusChange?: (status: AIStatus) => void;
+  isSlideIn?: boolean;
 }
 
 function buildContextMessage(
@@ -77,12 +78,21 @@ function buildContextMessage(
 Please analyze my property investment plan and provide your professional assessment.`;
 }
 
+// Goal-based reverse planner quick prompts
+const GOAL_PROMPTS = [
+  "I want RM 5M net equity in 15 years",
+  "I want RM 10M net equity in 20 years",
+  "I want positive cash flow from year 1",
+];
+
 const AIChatPanel = forwardRef<AIChatPanelRef, AIChatPanelProps>(
-  ({ results, inputs, onStatusChange }, ref) => {
+  ({ results, inputs, onStatusChange, isSlideIn = false }, ref) => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [input, setInput] = useState("");
     const [status, setStatus] = useState<AIStatus>("idle");
+    const [showGoalPlanner, setShowGoalPlanner] = useState(false);
+    const [goalInput, setGoalInput] = useState("");
     const scrollRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -124,6 +134,7 @@ const AIChatPanel = forwardRef<AIChatPanelRef, AIChatPanelProps>(
         const userMessage: Message = { role: "user", content: contextMsg };
         setMessages([userMessage]);
         setSuggestions([]);
+        setShowGoalPlanner(false);
         updateStatus("loading");
         chatMutation.mutate({ messages: [userMessage] });
       },
@@ -132,14 +143,14 @@ const AIChatPanel = forwardRef<AIChatPanelRef, AIChatPanelProps>(
     // Scroll to bottom when messages change
     useEffect(() => {
       if (scrollRef.current) {
-        const viewport = scrollRef.current.querySelector(
-          "[data-radix-scroll-area-viewport]"
-        ) as HTMLDivElement;
-        if (viewport) {
-          requestAnimationFrame(() => {
-            viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
-          });
-        }
+        requestAnimationFrame(() => {
+          if (scrollRef.current) {
+            scrollRef.current.scrollTo({
+              top: scrollRef.current.scrollHeight,
+              behavior: "smooth",
+            });
+          }
+        });
       }
     }, [messages, chatMutation.isPending, suggestions]);
 
@@ -153,6 +164,7 @@ const AIChatPanel = forwardRef<AIChatPanelRef, AIChatPanelProps>(
         setMessages(newMessages);
         setSuggestions([]);
         setInput("");
+        setShowGoalPlanner(false);
         updateStatus("loading");
         chatMutation.mutate({ messages: newMessages });
       },
@@ -177,9 +189,33 @@ const AIChatPanel = forwardRef<AIChatPanelRef, AIChatPanelProps>(
       const userMessage: Message = { role: "user", content: contextMsg };
       setMessages([userMessage]);
       setSuggestions([]);
+      setShowGoalPlanner(false);
       updateStatus("loading");
       chatMutation.mutate({ messages: [userMessage] });
     }, [results, inputs, chatMutation, updateStatus]);
+
+    const handleGoalSubmit = useCallback(
+      (goal: string) => {
+        if (!goal.trim() || !results || !inputs) return;
+        const contextMsg = buildContextMessage(inputs, results);
+        const goalMessage = `${contextMsg}
+
+---
+
+**MY GOAL:** ${goal.trim()}
+
+Based on my current simulation above, please reverse-engineer and suggest the optimal input parameters I should use to achieve this goal. Tell me specifically what I should change (purchase price, number of properties, appreciation rate, rental yield, loan type, purchase interval, etc.) and explain why. Show me the expected outcome with your suggested changes.`;
+
+        const userMessage: Message = { role: "user", content: goalMessage };
+        setMessages([userMessage]);
+        setSuggestions([]);
+        setShowGoalPlanner(false);
+        setGoalInput("");
+        updateStatus("loading");
+        chatMutation.mutate({ messages: [userMessage] });
+      },
+      [results, inputs, chatMutation, updateStatus]
+    );
 
     const displayMessages = messages.filter((m) => m.role !== "system");
     // Hide the first user message (context dump) — show AI response directly
@@ -188,113 +224,202 @@ const AIChatPanel = forwardRef<AIChatPanelRef, AIChatPanelProps>(
         ? displayMessages.slice(1)
         : displayMessages;
 
-    return (
-      <div className="apple-card overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#e5e5ea]/60">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#0071e3] to-[#5856d6] flex items-center justify-center shadow-[0_2px_8px_rgba(0,113,227,0.3)]">
-              <Sparkles className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <h3 className="text-[15px] font-semibold text-[#1d1d1f] leading-tight">
-                AI Financial Planner
-              </h3>
-              <p className="text-[11px] text-[#86868b] leading-tight mt-0.5">
-                {status === "loading"
-                  ? "AI is thinking..."
-                  : status === "ready"
-                  ? "Analysis ready"
-                  : "Powered by PropertyLab AI"}
-              </p>
-            </div>
-          </div>
-          {messages.length > 1 && (
-            <button
-              onClick={handleNewAnalysis}
-              className="flex items-center gap-1.5 text-[12px] font-medium text-[#0071e3] hover:text-[#0077ed] px-3 py-1.5 rounded-[8px] hover:bg-[#0071e3]/5 transition-colors"
-            >
-              <RotateCcw className="w-3 h-3" />
-              Re-analyze
-            </button>
-          )}
-        </div>
+    const hasMessages = visibleMessages.length > 0 || chatMutation.isPending;
 
-        {/* Messages */}
-        <div ref={scrollRef} className="max-h-[500px] overflow-hidden">
-          <ScrollArea className="h-full max-h-[500px]">
-            <div className="p-6 space-y-5">
-              {visibleMessages.map((message, index) => (
-                <div key={index}>
-                  {message.role === "assistant" ? (
-                    <div className="prose prose-sm max-w-none text-[14px] text-[#1d1d1f] leading-relaxed">
-                      <Streamdown>{message.content}</Streamdown>
-                    </div>
-                  ) : (
-                    <div className="flex justify-end">
-                      <div className="flex items-start gap-2 max-w-[85%]">
-                        <div className="bg-[#0071e3] text-white rounded-[14px] rounded-tr-[4px] px-4 py-2.5 text-[14px]">
-                          {message.content}
-                        </div>
+    return (
+      <div className={`flex flex-col ${isSlideIn ? "h-full" : ""}`}>
+        {/* Messages Area */}
+        <div
+          ref={scrollRef}
+          className={`flex-1 overflow-y-auto ${isSlideIn ? "" : "max-h-[500px]"}`}
+        >
+          <div className="p-6 space-y-5">
+            {/* Empty state — before any analysis */}
+            {!hasMessages && !showGoalPlanner && (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#0071e3]/10 to-[#5856d6]/10 flex items-center justify-center mb-4">
+                  <Sparkles className="w-6 h-6 text-[#0071e3]" />
+                </div>
+                <h4 className="text-[16px] font-semibold text-[#1d1d1f] mb-1">
+                  AI Financial Planner
+                </h4>
+                <p className="text-[13px] text-[#86868b] max-w-[280px] leading-relaxed">
+                  {results
+                    ? "Your analysis is being prepared. It will appear here shortly."
+                    : "Calculate your property plan first, then I'll analyze it for you."}
+                </p>
+              </div>
+            )}
+
+            {/* Chat messages */}
+            {visibleMessages.map((message, index) => (
+              <div key={index}>
+                {message.role === "assistant" ? (
+                  <div className="prose prose-sm max-w-none text-[14px] text-[#1d1d1f] leading-relaxed">
+                    <Streamdown>{message.content}</Streamdown>
+                  </div>
+                ) : (
+                  <div className="flex justify-end">
+                    <div className="flex items-start gap-2 max-w-[85%]">
+                      <div className="bg-[#0071e3] text-white rounded-[14px] rounded-tr-[4px] px-4 py-2.5 text-[14px]">
+                        {message.content}
                       </div>
                     </div>
-                  )}
-                </div>
-              ))}
-
-              {/* Loading state */}
-              {chatMutation.isPending && (
-                <div className="flex items-center gap-3 py-2">
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#0071e3] to-[#5856d6] flex items-center justify-center animate-pulse">
-                    <Sparkles className="w-3.5 h-3.5 text-white" />
                   </div>
-                  <div className="text-[14px] text-[#86868b] flex items-center gap-1">
-                    AI is thinking
-                    <span className="inline-flex">
-                      <span className="animate-bounce" style={{ animationDelay: "0ms" }}>.</span>
-                      <span className="animate-bounce" style={{ animationDelay: "150ms" }}>.</span>
-                      <span className="animate-bounce" style={{ animationDelay: "300ms" }}>.</span>
-                    </span>
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
+            ))}
 
-              {/* Recommendation Chips */}
-              {suggestions.length > 0 && !chatMutation.isPending && (
-                <div className="pt-2">
-                  <p className="text-[11px] font-medium text-[#86868b] uppercase tracking-wider mb-2.5">
-                    Suggested follow-ups
+            {/* Loading state */}
+            {chatMutation.isPending && (
+              <div className="flex items-center gap-3 py-2">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#0071e3] to-[#5856d6] flex items-center justify-center animate-pulse">
+                  <Sparkles className="w-3.5 h-3.5 text-white" />
+                </div>
+                <div className="text-[14px] text-[#86868b] flex items-center gap-1">
+                  AI is thinking
+                  <span className="inline-flex">
+                    <span className="animate-bounce" style={{ animationDelay: "0ms" }}>.</span>
+                    <span className="animate-bounce" style={{ animationDelay: "150ms" }}>.</span>
+                    <span className="animate-bounce" style={{ animationDelay: "300ms" }}>.</span>
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Recommendation Chips */}
+            {suggestions.length > 0 && !chatMutation.isPending && (
+              <div className="pt-3 pb-1">
+                <p className="text-[11px] font-medium text-[#86868b] uppercase tracking-wider mb-3">
+                  Suggested follow-ups
+                </p>
+                <div className="flex flex-col gap-2">
+                  {suggestions.map((suggestion, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleSend(suggestion)}
+                      className="
+                        text-left text-[13px] font-medium text-[#0071e3]
+                        bg-[#0071e3]/5 hover:bg-[#0071e3]/10
+                        border border-[#0071e3]/15 hover:border-[#0071e3]/25
+                        rounded-[10px] px-4 py-3
+                        transition-all duration-200
+                        hover:-translate-y-[1px]
+                        active:translate-y-0
+                      "
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Goal-Based Reverse Planner */}
+            {showGoalPlanner && (
+              <div className="pt-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                <div className="bg-gradient-to-br from-[#0071e3]/5 to-[#5856d6]/5 rounded-[14px] p-5 border border-[#0071e3]/10">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Target className="w-4 h-4 text-[#0071e3]" />
+                    <h4 className="text-[14px] font-semibold text-[#1d1d1f]">
+                      Goal-Based Reverse Planner
+                    </h4>
+                  </div>
+                  <p className="text-[12px] text-[#86868b] mb-4 leading-relaxed">
+                    Tell me your investment goal and I'll suggest the optimal parameters to achieve it.
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    {suggestions.map((suggestion, i) => (
+
+                  {/* Quick goal presets */}
+                  <div className="flex flex-col gap-2 mb-4">
+                    {GOAL_PROMPTS.map((goal, i) => (
                       <button
                         key={i}
-                        onClick={() => handleSend(suggestion)}
+                        onClick={() => handleGoalSubmit(goal)}
+                        disabled={chatMutation.isPending}
                         className="
-                          text-[13px] font-medium text-[#0071e3]
-                          bg-[#0071e3]/5 hover:bg-[#0071e3]/10
+                          text-left text-[13px] font-medium text-[#0071e3]
+                          bg-white hover:bg-[#0071e3]/5
                           border border-[#0071e3]/15 hover:border-[#0071e3]/25
-                          rounded-full px-4 py-2
+                          rounded-[10px] px-4 py-2.5
                           transition-all duration-200
-                          hover:-translate-y-[1px]
-                          active:translate-y-0
+                          disabled:opacity-50
                         "
                       >
-                        {suggestion}
+                        {goal}
                       </button>
                     ))}
                   </div>
+
+                  {/* Custom goal input */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={goalInput}
+                      onChange={(e) => setGoalInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleGoalSubmit(goalInput);
+                      }}
+                      placeholder="Or type your own goal..."
+                      className="
+                        flex-1 text-[13px] text-[#1d1d1f] placeholder-[#86868b]
+                        bg-white border border-[#d2d2d7] rounded-[10px]
+                        px-3.5 py-2.5
+                        focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3]
+                        transition-all duration-200
+                      "
+                    />
+                    <button
+                      onClick={() => handleGoalSubmit(goalInput)}
+                      disabled={!goalInput.trim() || chatMutation.isPending}
+                      className="
+                        px-4 py-2.5 text-[13px] font-medium text-white
+                        bg-[#0071e3] hover:bg-[#0077ed]
+                        disabled:opacity-40 disabled:cursor-not-allowed
+                        rounded-[10px] transition-all duration-200
+                      "
+                    >
+                      Go
+                    </button>
+                  </div>
                 </div>
-              )}
-            </div>
-          </ScrollArea>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Input Area */}
-        {(visibleMessages.length > 0 || chatMutation.isPending) && (
+        <div className="shrink-0 border-t border-[#e5e5ea]/60 bg-[#fafafa]">
+          {/* Action buttons row */}
+          {hasMessages && !chatMutation.isPending && (
+            <div className="flex items-center gap-2 px-5 pt-3">
+              <button
+                onClick={handleNewAnalysis}
+                className="flex items-center gap-1.5 text-[12px] font-medium text-[#86868b] hover:text-[#0071e3] px-3 py-1.5 rounded-[8px] hover:bg-[#0071e3]/5 transition-colors"
+              >
+                <RotateCcw className="w-3 h-3" />
+                Re-analyze
+              </button>
+              <button
+                onClick={() => setShowGoalPlanner(!showGoalPlanner)}
+                className={`
+                  flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-[8px] transition-colors
+                  ${
+                    showGoalPlanner
+                      ? "text-[#0071e3] bg-[#0071e3]/10"
+                      : "text-[#86868b] hover:text-[#0071e3] hover:bg-[#0071e3]/5"
+                  }
+                `}
+              >
+                <Target className="w-3 h-3" />
+                Goal Planner
+              </button>
+            </div>
+          )}
+
+          {/* Text input */}
           <form
             onSubmit={handleSubmit}
-            className="flex items-end gap-2 px-5 py-4 border-t border-[#e5e5ea]/60 bg-[#fafafa]"
+            className="flex items-end gap-2 px-5 py-3"
           >
             <textarea
               ref={textareaRef}
@@ -326,7 +451,7 @@ const AIChatPanel = forwardRef<AIChatPanelRef, AIChatPanelProps>(
               <Send className="w-4 h-4 text-white" />
             </button>
           </form>
-        )}
+        </div>
       </div>
     );
   }

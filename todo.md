@@ -20,3 +20,7 @@
 - [x] Show "AI is thinking..." loading state in tab and chat
 - [x] Clickable recommendation chips after each AI response
 - [x] Remove floating AI button and header AI button (replaced by tab)
+- [x] Revert AI UX — remove tab navigation, restore slide-in panel from right
+- [x] Move AI Financial Planner button next to title "Property Investment Simulator"
+- [x] Fix recommendation chips visibility after each AI response
+- [x] Add goal-based reverse planner mode (e.g. "I want RM 5M in 15 years")

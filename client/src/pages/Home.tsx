@@ -1,6 +1,6 @@
 /*
- * Home page — two-tab layout: Property Investment Simulator + AI Financial Planner.
- * AI tab is grayed out before calculation, lights up with gradient glow after.
+ * Home page — single-page layout with slide-in AI chat panel from the right.
+ * AI button sits next to the page title. Grayed before calculation, glowing after.
  * AI analysis auto-triggers in background on Calculate.
  */
 
@@ -17,9 +17,7 @@ import {
 } from "@/lib/calculator";
 import { useScenarios, type SavedScenario } from "@/hooks/useScenarios";
 import { toast } from "sonner";
-import { Bookmark, Sparkles, BarChart3 } from "lucide-react";
-
-type ActiveTab = "simulator" | "ai";
+import { Bookmark, Sparkles, X } from "lucide-react";
 
 export default function Home() {
   const [results, setResults] = useState<FullSimulationResult | null>(null);
@@ -29,10 +27,10 @@ export default function Home() {
   const [scenarioName, setScenarioName] = useState("");
   const [compareA, setCompareA] = useState<SavedScenario | null>(null);
   const [compareB, setCompareB] = useState<SavedScenario | null>(null);
-  const [activeTab, setActiveTab] = useState<ActiveTab>("simulator");
   const [hasUserCalculated, setHasUserCalculated] = useState(false);
-  const [aiGlowPulse, setAiGlowPulse] = useState(false);
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const [aiStatus, setAiStatus] = useState<AIStatus>("idle");
+  const [aiGlowPulse, setAiGlowPulse] = useState(false);
   const inputPanelRef = useRef<InputPanelRef>(null);
   const compareRef = useRef<HTMLDivElement>(null);
   const aiChatRef = useRef<AIChatPanelRef>(null);
@@ -70,9 +68,9 @@ export default function Home() {
     // Auto-trigger AI analysis in background
     setTimeout(() => {
       aiChatRef.current?.triggerAnalysis(inputs, result);
-      // Pulse the AI tab to signal it's ready
+      // Pulse the AI button to signal it's working
       setAiGlowPulse(true);
-      setTimeout(() => setAiGlowPulse(false), 3000);
+      setTimeout(() => setAiGlowPulse(false), 4000);
     }, 100);
   }, []);
 
@@ -89,7 +87,7 @@ export default function Home() {
     setTimeout(() => {
       aiChatRef.current?.triggerAnalysis(inputs, result);
       setAiGlowPulse(true);
-      setTimeout(() => setAiGlowPulse(false), 3000);
+      setTimeout(() => setAiGlowPulse(false), 4000);
     }, 100);
   }, []);
 
@@ -123,6 +121,14 @@ export default function Home() {
     setCompareB(null);
   }, []);
 
+  const handleAiButtonClick = () => {
+    if (!hasUserCalculated) {
+      toast("Calculate your plan first to unlock AI analysis.", { icon: "✨" });
+      return;
+    }
+    setAiPanelOpen(true);
+  };
+
   const aiIsLoading = aiStatus === "loading";
   const aiIsReady = aiStatus === "ready";
 
@@ -150,224 +156,220 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Tab Navigation — right below header */}
-      <div className="bg-white border-b border-[#e5e5ea]">
-        <div className="container">
-          <div className="flex items-center gap-1 pt-2">
-            {/* Simulator Tab */}
-            <button
-              onClick={() => setActiveTab("simulator")}
-              className={`
-                flex items-center gap-2 px-5 py-3 text-[14px] font-medium
-                border-b-2 transition-all duration-300 -mb-[1px]
-                ${
-                  activeTab === "simulator"
-                    ? "text-[#0071e3] border-[#0071e3]"
-                    : "text-[#86868b] border-transparent hover:text-[#1d1d1f] hover:border-[#d2d2d7]"
-                }
-              `}
-            >
-              <BarChart3 className="w-4 h-4" />
+      {/* Page Title + AI Button */}
+      <div className="container pt-8 pb-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 className="text-[28px] md:text-[34px] font-semibold text-[#1d1d1f] tracking-tight leading-tight">
               Property Investment Simulator
-            </button>
-
-            {/* AI Planner Tab */}
-            <button
-              onClick={() => {
-                if (hasUserCalculated) {
-                  setActiveTab("ai");
-                } else {
-                  toast("Calculate your plan first to unlock AI analysis.", {
-                    icon: "✨",
-                  });
-                }
-              }}
-              className={`
-                relative flex items-center gap-2 px-5 py-3 text-[14px] font-medium
-                border-b-2 transition-all duration-300 -mb-[1px]
-                ${
-                  !hasUserCalculated
-                    ? "text-[#c7c7cc] border-transparent cursor-default"
-                    : activeTab === "ai"
-                    ? "text-transparent bg-clip-text bg-gradient-to-r from-[#0071e3] to-[#5856d6] border-[#0071e3]"
-                    : "text-[#86868b] border-transparent hover:text-[#1d1d1f] hover:border-[#d2d2d7]"
-                }
-                ${aiGlowPulse && hasUserCalculated ? "animate-ai-tab-glow" : ""}
-              `}
-            >
-              {/* Gradient glow background when ready */}
-              {hasUserCalculated && activeTab !== "ai" && (
-                <span
-                  className={`
-                    absolute inset-0 rounded-t-lg
-                    bg-gradient-to-r from-[#0071e3]/5 to-[#5856d6]/5
-                    transition-opacity duration-500
-                    ${aiGlowPulse ? "opacity-100" : "opacity-0"}
-                  `}
-                />
-              )}
-              <Sparkles
-                className={`w-4 h-4 relative z-10 ${
-                  !hasUserCalculated
-                    ? "text-[#c7c7cc]"
-                    : activeTab === "ai"
-                    ? "text-[#0071e3]"
-                    : aiIsLoading
-                    ? "text-[#0071e3] animate-pulse"
-                    : aiIsReady
-                    ? "text-[#0071e3]"
-                    : "text-[#86868b]"
-                }`}
-              />
-              <span className="relative z-10">
-                AI Financial Planner
-              </span>
-              {/* Status badge */}
-              {hasUserCalculated && activeTab !== "ai" && (
-                <span
-                  className={`
-                    relative z-10 text-[10px] font-semibold px-2 py-0.5 rounded-full
-                    transition-all duration-300
-                    ${
-                      aiIsLoading
-                        ? "bg-[#0071e3]/10 text-[#0071e3] animate-pulse"
-                        : aiIsReady
-                        ? "bg-gradient-to-r from-[#0071e3] to-[#5856d6] text-white shadow-[0_2px_8px_rgba(0,113,227,0.3)]"
-                        : "bg-[#f5f5f7] text-[#86868b]"
-                    }
-                  `}
-                >
-                  {aiIsLoading ? "Thinking..." : aiIsReady ? "Ready" : ""}
-                </span>
-              )}
-              {/* "Calculate first" hint */}
-              {!hasUserCalculated && (
-                <span className="relative z-10 text-[10px] text-[#c7c7cc] font-normal">
-                  Calculate first
-                </span>
-              )}
-            </button>
+            </h2>
+            <p className="text-[15px] md:text-[17px] text-[#86868b] mt-2 leading-relaxed">
+              Model your portfolio growth over 10, 20, and 30 years.
+            </p>
           </div>
+
+          {/* AI Financial Planner Button — next to title */}
+          <button
+            onClick={handleAiButtonClick}
+            className={`
+              relative flex items-center gap-2.5 px-5 py-2.5 rounded-[12px]
+              text-[14px] font-medium transition-all duration-300
+              shrink-0 self-start sm:self-center
+              ${
+                !hasUserCalculated
+                  ? "bg-[#f5f5f7] text-[#c7c7cc] cursor-default border border-[#e5e5ea]"
+                  : aiIsLoading
+                  ? "bg-gradient-to-r from-[#0071e3]/10 to-[#5856d6]/10 text-[#0071e3] border border-[#0071e3]/20 animate-pulse"
+                  : aiIsReady
+                  ? "bg-gradient-to-r from-[#0071e3] to-[#5856d6] text-white shadow-[0_4px_16px_rgba(0,113,227,0.35)] hover:shadow-[0_6px_24px_rgba(0,113,227,0.45)] hover:-translate-y-[1px] cursor-pointer"
+                  : "bg-[#0071e3]/5 text-[#0071e3] border border-[#0071e3]/15 hover:bg-[#0071e3]/10 cursor-pointer"
+              }
+              ${aiGlowPulse && hasUserCalculated ? "animate-ai-tab-glow" : ""}
+            `}
+          >
+            <Sparkles
+              className={`w-4 h-4 ${
+                !hasUserCalculated
+                  ? "text-[#c7c7cc]"
+                  : aiIsLoading
+                  ? "text-[#0071e3] animate-spin"
+                  : aiIsReady
+                  ? "text-white"
+                  : "text-[#0071e3]"
+              }`}
+            />
+            <span>AI Financial Planner</span>
+            {/* Status indicator */}
+            {!hasUserCalculated && (
+              <span className="text-[10px] text-[#c7c7cc] font-normal ml-1">
+                Calculate first
+              </span>
+            )}
+            {hasUserCalculated && aiIsLoading && (
+              <span className="text-[10px] font-semibold bg-white/80 text-[#0071e3] px-2 py-0.5 rounded-full">
+                Thinking...
+              </span>
+            )}
+            {hasUserCalculated && aiIsReady && (
+              <span className="text-[10px] font-semibold bg-white/20 text-white px-2 py-0.5 rounded-full">
+                Ready
+              </span>
+            )}
+          </button>
         </div>
       </div>
 
-      {/* Simulator Tab Content */}
-      <div className={activeTab === "simulator" ? "block" : "hidden"}>
-        {/* Page Title */}
-        <div className="container pt-8 pb-2">
-          <h2 className="text-[28px] md:text-[34px] font-semibold text-[#1d1d1f] tracking-tight leading-tight">
-            Property Investment Simulator
-          </h2>
-          <p className="text-[15px] md:text-[17px] text-[#86868b] mt-2 leading-relaxed">
-            Model your portfolio growth over 10, 20, and 30 years.
-          </p>
-        </div>
+      {/* Main Content — always visible, no tabs */}
+      <main className="container py-6 md:py-8 space-y-8">
+        <InputPanel
+          ref={inputPanelRef}
+          onCalculate={handleCalculate}
+          externalInputs={externalInputs}
+        />
 
-        <main className="container py-6 md:py-8 space-y-8">
-          <InputPanel
-            ref={inputPanelRef}
-            onCalculate={handleCalculate}
-            externalInputs={externalInputs}
-          />
-
-          {/* Save Scenario Button */}
-          {results && lastInputs && (
-            <div className="flex flex-wrap justify-center gap-3">
-              {!showSaveDialog ? (
-                <button
-                  onClick={() => setShowSaveDialog(true)}
-                  className="
-                    flex items-center gap-2 px-6 py-2.5 text-[14px] font-medium
-                    text-[#0071e3] bg-[#0071e3]/5 hover:bg-[#0071e3]/10
-                    rounded-[10px] transition-all duration-200
-                    border border-[#0071e3]/15
-                  "
-                >
-                  <Bookmark className="w-4 h-4" />
-                  Save This Scenario
-                </button>
-              ) : (
-                <div className="apple-card p-5 w-full max-w-md animate-in fade-in slide-in-from-bottom-2 duration-200">
-                  <p className="text-[15px] font-medium text-[#1d1d1f] mb-3">Name your scenario</p>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={scenarioName}
-                      onChange={(e) => setScenarioName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleSave();
-                        if (e.key === "Escape") {
-                          setShowSaveDialog(false);
-                          setScenarioName("");
-                        }
-                      }}
-                      placeholder="e.g. Conservative 3% growth"
-                      autoFocus
-                      className="apple-input flex-1 text-[14px]"
-                    />
-                    <button
-                      onClick={handleSave}
-                      disabled={!scenarioName.trim()}
-                      className="
-                        px-5 py-2.5 text-[14px] font-medium text-white
-                        bg-[#0071e3] hover:bg-[#0077ed] disabled:opacity-40 disabled:cursor-not-allowed
-                        rounded-[10px] transition-all duration-200
-                        shadow-[0_2px_6px_rgba(0,113,227,0.2)]
-                      "
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={() => { setShowSaveDialog(false); setScenarioName(""); }}
-                      className="
-                        px-4 py-2.5 text-[14px] font-medium text-[#86868b]
-                        bg-[#f5f5f7] hover:bg-[#e5e5ea]
-                        rounded-[10px] transition-all duration-200
-                      "
-                    >
-                      Cancel
-                    </button>
-                  </div>
+        {/* Save Scenario Button */}
+        {results && lastInputs && (
+          <div className="flex flex-wrap justify-center gap-3">
+            {!showSaveDialog ? (
+              <button
+                onClick={() => setShowSaveDialog(true)}
+                className="
+                  flex items-center gap-2 px-6 py-2.5 text-[14px] font-medium
+                  text-[#0071e3] bg-[#0071e3]/5 hover:bg-[#0071e3]/10
+                  rounded-[10px] transition-all duration-200
+                  border border-[#0071e3]/15
+                "
+              >
+                <Bookmark className="w-4 h-4" />
+                Save This Scenario
+              </button>
+            ) : (
+              <div className="apple-card p-5 w-full max-w-md animate-in fade-in slide-in-from-bottom-2 duration-200">
+                <p className="text-[15px] font-medium text-[#1d1d1f] mb-3">Name your scenario</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={scenarioName}
+                    onChange={(e) => setScenarioName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSave();
+                      if (e.key === "Escape") {
+                        setShowSaveDialog(false);
+                        setScenarioName("");
+                      }
+                    }}
+                    placeholder="e.g. Conservative 3% growth"
+                    autoFocus
+                    className="apple-input flex-1 text-[14px]"
+                  />
+                  <button
+                    onClick={handleSave}
+                    disabled={!scenarioName.trim()}
+                    className="
+                      px-5 py-2.5 text-[14px] font-medium text-white
+                      bg-[#0071e3] hover:bg-[#0077ed] disabled:opacity-40 disabled:cursor-not-allowed
+                      rounded-[10px] transition-all duration-200
+                      shadow-[0_2px_6px_rgba(0,113,227,0.2)]
+                    "
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => { setShowSaveDialog(false); setScenarioName(""); }}
+                    className="
+                      px-4 py-2.5 text-[14px] font-medium text-[#86868b]
+                      bg-[#f5f5f7] hover:bg-[#e5e5ea]
+                      rounded-[10px] transition-all duration-200
+                    "
+                  >
+                    Cancel
+                  </button>
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
+        )}
 
-          {results && <ResultsPanel results={results} />}
+        {results && <ResultsPanel results={results} />}
 
-          {/* Saved Scenarios */}
-          <SavedScenarios
-            scenarios={scenarios}
-            onLoad={handleLoadScenario}
-            onDelete={handleDelete}
-            onRename={renameScenario}
-            onCompare={handleCompare}
-          />
+        {/* Saved Scenarios */}
+        <SavedScenarios
+          scenarios={scenarios}
+          onLoad={handleLoadScenario}
+          onDelete={handleDelete}
+          onRename={renameScenario}
+          onCompare={handleCompare}
+        />
 
-          {/* Side-by-Side Comparison */}
-          {compareA && compareB && (
-            <div ref={compareRef}>
-              <CompareScenarios
-                scenarioA={compareA}
-                scenarioB={compareB}
-                onClose={handleCloseCompare}
-              />
-            </div>
-          )}
-        </main>
-      </div>
-
-      {/* AI Planner Tab Content */}
-      <div className={activeTab === "ai" ? "block" : "hidden"}>
-        <div className="container py-6 md:py-8">
-          <div className="max-w-3xl mx-auto">
-            <AIChatPanel
-              ref={aiChatRef}
-              results={results}
-              inputs={lastInputs}
-              onStatusChange={setAiStatus}
+        {/* Side-by-Side Comparison */}
+        {compareA && compareB && (
+          <div ref={compareRef}>
+            <CompareScenarios
+              scenarioA={compareA}
+              scenarioB={compareB}
+              onClose={handleCloseCompare}
             />
           </div>
+        )}
+      </main>
+
+      {/* Slide-in AI Chat Panel from the Right */}
+      {/* Backdrop */}
+      <div
+        className={`
+          fixed inset-0 bg-black/30 backdrop-blur-[2px] z-40
+          transition-opacity duration-300
+          ${aiPanelOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}
+        `}
+        onClick={() => setAiPanelOpen(false)}
+      />
+
+      {/* Panel */}
+      <div
+        className={`
+          fixed top-0 right-0 h-full w-full max-w-[480px] z-50
+          bg-white shadow-[-8px_0_30px_rgba(0,0,0,0.12)]
+          transform transition-transform duration-300 ease-out
+          ${aiPanelOpen ? "translate-x-0" : "translate-x-full"}
+          flex flex-col
+        `}
+      >
+        {/* Panel Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#e5e5ea] bg-white shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#0071e3] to-[#5856d6] flex items-center justify-center shadow-[0_2px_8px_rgba(0,113,227,0.3)]">
+              <Sparkles className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <h3 className="text-[15px] font-semibold text-[#1d1d1f] leading-tight">
+                AI Financial Planner
+              </h3>
+              <p className="text-[11px] text-[#86868b] leading-tight mt-0.5">
+                {aiIsLoading
+                  ? "AI is thinking..."
+                  : aiIsReady
+                  ? "Analysis ready"
+                  : "Powered by PropertyLab AI"}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setAiPanelOpen(false)}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-[#86868b] hover:text-[#1d1d1f] hover:bg-[#f5f5f7] transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Chat Content */}
+        <div className="flex-1 overflow-hidden">
+          <AIChatPanel
+            ref={aiChatRef}
+            results={results}
+            inputs={lastInputs}
+            onStatusChange={setAiStatus}
+            isSlideIn={true}
+          />
         </div>
       </div>
 
