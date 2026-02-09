@@ -1,18 +1,20 @@
 /*
- * Home page — integrates InputPanel, ResultsPanel, and SavedScenarios.
+ * Home page — integrates InputPanel, ResultsPanel, SavedScenarios, and CompareScenarios.
  * Save dialog appears after calculation. Load scenario populates inputs.
+ * Compare mode shows side-by-side comparison of two selected scenarios.
  */
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import InputPanel, { type InputPanelRef } from "@/components/InputPanel";
 import ResultsPanel from "@/components/ResultsPanel";
 import SavedScenarios from "@/components/SavedScenarios";
+import CompareScenarios from "@/components/CompareScenarios";
 import {
   calculatePropertyPlan,
   type CalculatorInputs,
   type FullSimulationResult,
 } from "@/lib/calculator";
-import { useScenarios } from "@/hooks/useScenarios";
+import { useScenarios, type SavedScenario } from "@/hooks/useScenarios";
 import { toast } from "sonner";
 import { Bookmark } from "lucide-react";
 
@@ -22,7 +24,10 @@ export default function Home() {
   const [externalInputs, setExternalInputs] = useState<CalculatorInputs | null>(null);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [scenarioName, setScenarioName] = useState("");
+  const [compareA, setCompareA] = useState<SavedScenario | null>(null);
+  const [compareB, setCompareB] = useState<SavedScenario | null>(null);
   const inputPanelRef = useRef<InputPanelRef>(null);
+  const compareRef = useRef<HTMLDivElement>(null);
 
   const { scenarios, saveScenario, deleteScenario, renameScenario } = useScenarios();
 
@@ -58,7 +63,6 @@ export default function Home() {
     setResults(result);
     setLastInputs(inputs);
     toast.success("Scenario loaded — inputs updated and recalculated.");
-    // Scroll to top
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
@@ -72,8 +76,27 @@ export default function Home() {
 
   const handleDelete = useCallback((id: string) => {
     deleteScenario(id);
+    // If deleting a scenario that's in comparison, close comparison
+    if (compareA?.id === id || compareB?.id === id) {
+      setCompareA(null);
+      setCompareB(null);
+    }
     toast("Scenario deleted.");
-  }, [deleteScenario]);
+  }, [deleteScenario, compareA, compareB]);
+
+  const handleCompare = useCallback((a: SavedScenario, b: SavedScenario) => {
+    setCompareA(a);
+    setCompareB(b);
+    // Scroll to comparison after a brief delay for render
+    setTimeout(() => {
+      compareRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  }, []);
+
+  const handleCloseCompare = useCallback(() => {
+    setCompareA(null);
+    setCompareB(null);
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -117,7 +140,7 @@ export default function Home() {
           externalInputs={externalInputs}
         />
 
-        {/* Save Scenario Button — appears after results */}
+        {/* Save Scenario Button */}
         {results && lastInputs && (
           <div className="flex justify-center">
             {!showSaveDialog ? (
@@ -188,7 +211,19 @@ export default function Home() {
           onLoad={handleLoadScenario}
           onDelete={handleDelete}
           onRename={renameScenario}
+          onCompare={handleCompare}
         />
+
+        {/* Side-by-Side Comparison */}
+        {compareA && compareB && (
+          <div ref={compareRef}>
+            <CompareScenarios
+              scenarioA={compareA}
+              scenarioB={compareB}
+              onClose={handleCloseCompare}
+            />
+          </div>
+        )}
       </main>
 
       {/* Footer */}
