@@ -1,20 +1,32 @@
 /*
- * Apple-level UI/UX: minimal header, warm gray bg, top-down flow.
- * No hero image. Clean, confident, understated.
+ * Home page — integrates InputPanel, ResultsPanel, and SavedScenarios.
+ * Save dialog appears after calculation. Load scenario populates inputs.
  */
 
-import { useState, useCallback, useEffect } from "react";
-import InputPanel from "@/components/InputPanel";
+import { useState, useCallback, useEffect, useRef } from "react";
+import InputPanel, { type InputPanelRef } from "@/components/InputPanel";
 import ResultsPanel from "@/components/ResultsPanel";
+import SavedScenarios from "@/components/SavedScenarios";
 import {
   calculatePropertyPlan,
   type CalculatorInputs,
   type FullSimulationResult,
 } from "@/lib/calculator";
+import { useScenarios } from "@/hooks/useScenarios";
+import { toast } from "sonner";
+import { Bookmark } from "lucide-react";
 
 export default function Home() {
   const [results, setResults] = useState<FullSimulationResult | null>(null);
+  const [lastInputs, setLastInputs] = useState<CalculatorInputs | null>(null);
+  const [externalInputs, setExternalInputs] = useState<CalculatorInputs | null>(null);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [scenarioName, setScenarioName] = useState("");
+  const inputPanelRef = useRef<InputPanelRef>(null);
 
+  const { scenarios, saveScenario, deleteScenario, renameScenario } = useScenarios();
+
+  // Run default calculation on mount
   useEffect(() => {
     const defaultInputs: CalculatorInputs = {
       purchasePrice: 500000,
@@ -29,17 +41,43 @@ export default function Home() {
       startingYear: 2026,
       loanTenure: 30,
     };
-    setResults(calculatePropertyPlan(defaultInputs));
+    const result = calculatePropertyPlan(defaultInputs);
+    setResults(result);
+    setLastInputs(defaultInputs);
   }, []);
 
   const handleCalculate = useCallback((inputs: CalculatorInputs) => {
     const result = calculatePropertyPlan(inputs);
     setResults(result);
+    setLastInputs(inputs);
   }, []);
+
+  const handleLoadScenario = useCallback((inputs: CalculatorInputs) => {
+    setExternalInputs({ ...inputs });
+    const result = calculatePropertyPlan(inputs);
+    setResults(result);
+    setLastInputs(inputs);
+    toast.success("Scenario loaded — inputs updated and recalculated.");
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  const handleSave = useCallback(() => {
+    if (!scenarioName.trim() || !lastInputs || !results) return;
+    saveScenario(scenarioName, lastInputs, results);
+    setShowSaveDialog(false);
+    setScenarioName("");
+    toast.success(`Scenario "${scenarioName.trim()}" saved.`);
+  }, [scenarioName, lastInputs, results, saveScenario]);
+
+  const handleDelete = useCallback((id: string) => {
+    deleteScenario(id);
+    toast("Scenario deleted.");
+  }, [deleteScenario]);
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Minimal Header — Apple style */}
+      {/* Minimal Header */}
       <header className="bg-white border-b border-[#e5e5ea]">
         <div className="container flex items-center justify-between py-4">
           <div className="flex items-center gap-3">
@@ -73,8 +111,84 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="container py-6 md:py-8 space-y-8">
-        <InputPanel onCalculate={handleCalculate} />
+        <InputPanel
+          ref={inputPanelRef}
+          onCalculate={handleCalculate}
+          externalInputs={externalInputs}
+        />
+
+        {/* Save Scenario Button — appears after results */}
+        {results && lastInputs && (
+          <div className="flex justify-center">
+            {!showSaveDialog ? (
+              <button
+                onClick={() => setShowSaveDialog(true)}
+                className="
+                  flex items-center gap-2 px-6 py-2.5 text-[14px] font-medium
+                  text-[#0071e3] bg-[#0071e3]/5 hover:bg-[#0071e3]/10
+                  rounded-[10px] transition-all duration-200
+                  border border-[#0071e3]/15
+                "
+              >
+                <Bookmark className="w-4 h-4" />
+                Save This Scenario
+              </button>
+            ) : (
+              <div className="apple-card p-5 w-full max-w-md animate-in fade-in slide-in-from-bottom-2 duration-200">
+                <p className="text-[15px] font-medium text-[#1d1d1f] mb-3">Name your scenario</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={scenarioName}
+                    onChange={(e) => setScenarioName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSave();
+                      if (e.key === "Escape") {
+                        setShowSaveDialog(false);
+                        setScenarioName("");
+                      }
+                    }}
+                    placeholder="e.g. Conservative 3% growth"
+                    autoFocus
+                    className="apple-input flex-1 text-[14px]"
+                  />
+                  <button
+                    onClick={handleSave}
+                    disabled={!scenarioName.trim()}
+                    className="
+                      px-5 py-2.5 text-[14px] font-medium text-white
+                      bg-[#0071e3] hover:bg-[#0077ed] disabled:opacity-40 disabled:cursor-not-allowed
+                      rounded-[10px] transition-all duration-200
+                      shadow-[0_2px_6px_rgba(0,113,227,0.2)]
+                    "
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => { setShowSaveDialog(false); setScenarioName(""); }}
+                    className="
+                      px-4 py-2.5 text-[14px] font-medium text-[#86868b]
+                      bg-[#f5f5f7] hover:bg-[#e5e5ea]
+                      rounded-[10px] transition-all duration-200
+                    "
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {results && <ResultsPanel results={results} />}
+
+        {/* Saved Scenarios */}
+        <SavedScenarios
+          scenarios={scenarios}
+          onLoad={handleLoadScenario}
+          onDelete={handleDelete}
+          onRename={renameScenario}
+        />
       </main>
 
       {/* Footer */}
