@@ -1,21 +1,12 @@
 /*
- * Design: "Wealth Canvas" — Editorial Finance Magazine
- * Pull-quote style for key metrics, serif display, editorial layout
- * Charts as centerpiece, thin horizontal rules between sections
+ * Professional financial app — Google-style clean UI
+ * Blue/white/black brand. Charts and tables below inputs.
  */
 
 import { useMemo, useRef, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  TrendingUp,
-  Building,
-  BarChart3,
-  Table2,
-  BookOpen,
-  Calculator,
-} from "lucide-react";
 import type { FullSimulationResult } from "@/lib/calculator";
 import { formatNumber } from "@/lib/calculator";
 import {
@@ -32,17 +23,9 @@ import {
 } from "chart.js";
 import { Line, Bar } from "react-chartjs-2";
 
-// Register Chart.js components
 ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Title,
-  ChartTooltip,
-  Legend,
-  Filler
+  CategoryScale, LinearScale, PointElement, LineElement, BarElement,
+  Title, ChartTooltip, Legend, Filler
 );
 
 interface ResultsPanelProps {
@@ -56,382 +39,256 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
     resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [results]);
 
-  const metrics = useMemo(
-    () => [
+  const metrics = useMemo(() => [
+    {
+      label: "10-Year Net Equity",
+      value: `RM ${formatNumber(results.results10.netEquity.toFixed(0))}`,
+    },
+    {
+      label: "20-Year Net Equity",
+      value: `RM ${formatNumber(results.results20.netEquity.toFixed(0))}`,
+    },
+    {
+      label: "30-Year Net Equity",
+      value: `RM ${formatNumber(results.results30.netEquity.toFixed(0))}`,
+    },
+    {
+      label: "Properties Owned",
+      value: String(results.results30.propertiesOwned),
+    },
+  ], [results]);
+
+  // Equity Growth Chart
+  const equityChartData = useMemo(() => ({
+    labels: results.yearlyData.map((d) => String(d.calendarYear)),
+    datasets: [
       {
-        label: "10-Year Net Equity",
-        value: `RM ${formatNumber(results.results10.netEquity.toFixed(0))}`,
-        color: "text-primary",
+        label: "Total Asset Value",
+        data: results.yearlyData.map((d) => d.totalAssetValue),
+        borderColor: "#2563eb",
+        backgroundColor: "rgba(37, 99, 235, 0.08)",
+        borderWidth: 2.5,
+        fill: true,
+        tension: 0.3,
+        pointRadius: 0,
+        pointHoverRadius: 4,
       },
       {
-        label: "20-Year Net Equity",
-        value: `RM ${formatNumber(results.results20.netEquity.toFixed(0))}`,
-        color: "text-primary",
+        label: "Total Loan Balance",
+        data: results.yearlyData.map((d) => d.totalLoanBalance),
+        borderColor: "#ef4444",
+        backgroundColor: "rgba(239, 68, 68, 0.06)",
+        borderWidth: 2.5,
+        fill: true,
+        tension: 0.3,
+        pointRadius: 0,
+        pointHoverRadius: 4,
       },
       {
-        label: "30-Year Net Equity",
-        value: `RM ${formatNumber(results.results30.netEquity.toFixed(0))}`,
-        color: "text-primary",
-      },
-      {
-        label: "Properties Owned",
-        value: String(results.results30.propertiesOwned),
-        color: "text-amber-700",
+        label: "Net Equity",
+        data: results.yearlyData.map((d) => d.netEquity),
+        borderColor: "#10b981",
+        backgroundColor: "rgba(16, 185, 129, 0.06)",
+        borderWidth: 2.5,
+        fill: true,
+        tension: 0.3,
+        pointRadius: 0,
+        pointHoverRadius: 4,
       },
     ],
-    [results]
-  );
+  }), [results]);
 
-  // Equity Growth Chart Data
-  const equityChartData = useMemo(() => {
-    const labels = results.yearlyData.map((d) => String(d.calendarYear));
-    return {
-      labels,
-      datasets: [
-        {
-          label: "Total Asset Value",
-          data: results.yearlyData.map((d) => d.totalAssetValue),
-          borderColor: "#166534",
-          backgroundColor: "rgba(22, 101, 52, 0.08)",
-          borderWidth: 2.5,
-          fill: true,
-          tension: 0.3,
-          pointRadius: 0,
-          pointHoverRadius: 5,
-        },
-        {
-          label: "Total Loan Balance",
-          data: results.yearlyData.map((d) => d.totalLoanBalance),
-          borderColor: "#be123c",
-          backgroundColor: "rgba(190, 18, 60, 0.06)",
-          borderWidth: 2.5,
-          fill: true,
-          tension: 0.3,
-          pointRadius: 0,
-          pointHoverRadius: 5,
-        },
-        {
-          label: "Net Equity",
-          data: results.yearlyData.map((d) => d.netEquity),
-          borderColor: "#b8860b",
-          backgroundColor: "rgba(184, 134, 11, 0.08)",
-          borderWidth: 2.5,
-          fill: true,
-          tension: 0.3,
-          pointRadius: 0,
-          pointHoverRadius: 5,
-        },
-      ],
-    };
-  }, [results]);
+  // Timeline Chart
+  const timelineChartData = useMemo(() => ({
+    labels: results.yearlyData.map((d) => String(d.calendarYear)),
+    datasets: [{
+      label: "Properties Owned",
+      data: results.yearlyData.map((d) => d.propertiesOwned),
+      backgroundColor: "rgba(245, 158, 11, 0.75)",
+      borderColor: "#d97706",
+      borderWidth: 1,
+      borderRadius: 3,
+    }],
+  }), [results]);
 
-  // Timeline Chart Data
-  const timelineChartData = useMemo(() => {
-    const labels = results.yearlyData.map((d) => String(d.calendarYear));
-    return {
-      labels,
-      datasets: [
-        {
-          label: "Properties Owned",
-          data: results.yearlyData.map((d) => d.propertiesOwned),
-          backgroundColor: "rgba(184, 134, 11, 0.7)",
-          borderColor: "#b8860b",
-          borderWidth: 1,
-          borderRadius: 4,
-        },
-      ],
-    };
-  }, [results]);
-
-  // Cash Flow Chart Data
+  // Cash Flow Chart
   const cashflowChartData = useMemo(() => {
-    const yearlySlice = results.yearlyData.slice(1); // skip year 0
-    const labels = yearlySlice.map((_, i) => String(i + 1));
+    const yearlySlice = results.yearlyData.slice(1);
     return {
-      labels,
+      labels: yearlySlice.map((_, i) => String(i + 1)),
       datasets: [
         {
           label: "Rental Income",
           data: yearlySlice.map((d) => d.annualRentalIncome),
-          backgroundColor: "rgba(22, 101, 52, 0.7)",
-          borderColor: "#166534",
+          backgroundColor: "rgba(16, 185, 129, 0.75)",
+          borderColor: "#059669",
           borderWidth: 1,
-          borderRadius: 3,
+          borderRadius: 2,
         },
         {
           label: "Mortgage Payments",
           data: yearlySlice.map((d) => d.annualMortgagePayment),
-          backgroundColor: "rgba(190, 18, 60, 0.7)",
-          borderColor: "#be123c",
+          backgroundColor: "rgba(239, 68, 68, 0.75)",
+          borderColor: "#dc2626",
           borderWidth: 1,
-          borderRadius: 3,
+          borderRadius: 2,
         },
         {
           label: "Net Cash Flow",
           data: yearlySlice.map((d) => d.annualCashFlow),
-          backgroundColor: "rgba(37, 99, 235, 0.7)",
-          borderColor: "#2563eb",
+          backgroundColor: "rgba(37, 99, 235, 0.75)",
+          borderColor: "#1d4ed8",
           borderWidth: 1,
-          borderRadius: 3,
+          borderRadius: 2,
         },
       ],
     };
   }, [results]);
 
-  const chartOptions = useMemo(
-    () => ({
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: "top" as const,
-          labels: {
-            font: { family: "'Source Sans 3', sans-serif", size: 12 },
-            padding: 16,
-            usePointStyle: true,
-            pointStyleWidth: 10,
-          },
-        },
-        tooltip: {
-          mode: "index" as const,
-          intersect: false,
-          backgroundColor: "#1a1a2e",
-          titleFont: { family: "'Source Sans 3', sans-serif", size: 13 },
-          bodyFont: { family: "'JetBrains Mono', monospace", size: 12 },
-          padding: 12,
-          cornerRadius: 8,
-          callbacks: {
-            label: function (context: { dataset: { label: string }; raw: number }) {
-              return `${context.dataset.label}: RM ${formatNumber(context.raw.toFixed(0))}`;
-            },
-          },
-        },
-      },
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: {
-            font: { family: "'Source Sans 3', sans-serif", size: 11 },
-            maxRotation: 45,
-          },
-        },
-        y: {
-          grid: { color: "rgba(0,0,0,0.04)" },
-          ticks: {
-            font: { family: "'JetBrains Mono', monospace", size: 11 },
-            callback: function (value: number | string) {
-              return "RM " + formatNumber(Number(value));
-            },
-          },
-        },
-      },
-    }),
-    []
-  );
+  const fontFamily = "'Roboto', sans-serif";
+  const monoFont = "'Roboto Mono', monospace";
 
-  const timelineChartOptions = useMemo(
-    () => ({
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: "top" as const,
-          labels: {
-            font: { family: "'Source Sans 3', sans-serif", size: 12 },
-            padding: 16,
-            usePointStyle: true,
-          },
-        },
-        tooltip: {
-          backgroundColor: "#1a1a2e",
-          titleFont: { family: "'Source Sans 3', sans-serif", size: 13 },
-          bodyFont: { family: "'JetBrains Mono', monospace", size: 12 },
-          padding: 12,
-          cornerRadius: 8,
-        },
+  const lineChartOptions = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      title: { display: true, text: "Net Equity Growth Over Time", font: { family: fontFamily, size: 14, weight: "500" as const }, color: "#1a1a1a", padding: { bottom: 16 } },
+      legend: { position: "top" as const, labels: { font: { family: fontFamily, size: 12 }, padding: 16, usePointStyle: true, pointStyleWidth: 8 } },
+      tooltip: {
+        mode: "index" as const, intersect: false, backgroundColor: "#1a1a1a",
+        titleFont: { family: fontFamily, size: 12 }, bodyFont: { family: monoFont, size: 11 },
+        padding: 10, cornerRadius: 6,
+        callbacks: { label: (ctx: any) => `${ctx.dataset.label}: RM ${formatNumber(ctx.raw.toFixed(0))}` },
       },
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: {
-            font: { family: "'Source Sans 3', sans-serif", size: 11 },
-            maxRotation: 45,
-          },
-        },
-        y: {
-          beginAtZero: true,
-          ticks: {
-            stepSize: 1,
-            font: { family: "'JetBrains Mono', monospace", size: 11 },
-          },
-          grid: { color: "rgba(0,0,0,0.04)" },
-        },
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { family: fontFamily, size: 11 }, color: "#666", maxRotation: 45 }, title: { display: true, text: "Year", font: { family: fontFamily, size: 12 }, color: "#666" } },
+      y: { grid: { color: "rgba(0,0,0,0.05)" }, ticks: { font: { family: monoFont, size: 11 }, color: "#666", callback: (v: any) => "RM " + formatNumber(Number(v)) }, title: { display: true, text: "Value (RM)", font: { family: fontFamily, size: 12 }, color: "#666" } },
+    },
+  }), []);
+
+  const timelineOptions = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      title: { display: true, text: "Property Purchase Timeline", font: { family: fontFamily, size: 14, weight: "500" as const }, color: "#1a1a1a", padding: { bottom: 16 } },
+      legend: { position: "top" as const, labels: { font: { family: fontFamily, size: 12 }, padding: 16, usePointStyle: true } },
+      tooltip: { backgroundColor: "#1a1a1a", titleFont: { family: fontFamily, size: 12 }, bodyFont: { family: monoFont, size: 11 }, padding: 10, cornerRadius: 6 },
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { family: fontFamily, size: 11 }, color: "#666", maxRotation: 45 }, title: { display: true, text: "Year", font: { family: fontFamily, size: 12 }, color: "#666" } },
+      y: { beginAtZero: true, ticks: { stepSize: 1, font: { family: monoFont, size: 11 }, color: "#666" }, grid: { color: "rgba(0,0,0,0.05)" }, title: { display: true, text: "Number of Properties", font: { family: fontFamily, size: 12 }, color: "#666" } },
+    },
+  }), []);
+
+  const cashflowOptions = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      title: { display: true, text: "Annual Cash Flow Projection", font: { family: fontFamily, size: 14, weight: "500" as const }, color: "#1a1a1a", padding: { bottom: 16 } },
+      legend: { position: "top" as const, labels: { font: { family: fontFamily, size: 12 }, padding: 16, usePointStyle: true } },
+      tooltip: {
+        backgroundColor: "#1a1a1a", titleFont: { family: fontFamily, size: 12 }, bodyFont: { family: monoFont, size: 11 },
+        padding: 10, cornerRadius: 6,
+        callbacks: { label: (ctx: any) => `${ctx.dataset.label}: RM ${formatNumber(ctx.raw.toFixed(0))}` },
       },
-    }),
-    []
-  );
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { family: fontFamily, size: 11 }, color: "#666" }, title: { display: true, text: "Years", font: { family: fontFamily, size: 12 }, color: "#666" } },
+      y: { grid: { color: "rgba(0,0,0,0.05)" }, ticks: { font: { family: monoFont, size: 11 }, color: "#666", callback: (v: any) => "RM " + formatNumber(Number(v)) }, title: { display: true, text: "Amount (RM)", font: { family: fontFamily, size: 12 }, color: "#666" } },
+    },
+  }), []);
 
   return (
-    <div ref={resultsRef} className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Key Metrics */}
-      <div>
-        <h2 className="font-display text-2xl md:text-3xl font-bold tracking-tight text-foreground mb-6">
-          Your Property Investment Plan
-        </h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {metrics.map((metric, i) => (
-            <Card
-              key={i}
-              className="border-0 shadow-sm text-center overflow-hidden group hover:shadow-md transition-all duration-300"
-            >
-              <CardContent className="pt-5 pb-5 px-4">
-                <p className="text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-muted-foreground font-body mb-2">
-                  {metric.label}
-                </p>
-                <p
-                  className={`font-display text-lg md:text-2xl font-bold ${metric.color} leading-tight`}
-                >
-                  {metric.value}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+    <div ref={resultsRef} className="space-y-5">
+      {/* Section Title */}
+      <h2 className="text-xl font-medium text-gray-900 flex items-center gap-2">
+        <span className="text-lg">📊</span>
+        Your Property Investment Plan
+      </h2>
+
+      {/* Metric Cards — 4 across */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {metrics.map((m, i) => (
+          <Card key={i} className="shadow-sm border border-gray-100 text-center">
+            <CardContent className="py-5 px-3">
+              <p className="text-xs font-medium text-gray-500 mb-1.5">{m.label}</p>
+              <p className="text-xl md:text-2xl font-medium text-blue-600 font-mono leading-tight">
+                {m.value}
+              </p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Charts & Data Tabs */}
-      <Card className="border-0 shadow-sm">
+      {/* Tabs: Charts + Table + Info */}
+      <Card className="shadow-sm border border-gray-100">
         <CardContent className="p-0">
           <Tabs defaultValue="equity" className="w-full">
-            <div className="px-4 pt-4 md:px-6 md:pt-6">
-              <TabsList className="w-full flex flex-wrap h-auto gap-1 bg-secondary/50 p-1 rounded-lg">
-                <TabsTrigger
-                  value="equity"
-                  className="flex-1 min-w-[120px] gap-1.5 text-xs md:text-sm font-body data-[state=active]:bg-white data-[state=active]:shadow-sm"
-                >
-                  <TrendingUp className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Equity</span> Growth
+            <div className="px-4 pt-4 md:px-5 md:pt-5 border-b border-gray-100">
+              <TabsList className="w-full flex flex-wrap h-auto gap-0 bg-transparent p-0 rounded-none">
+                <TabsTrigger value="equity" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:text-blue-600 data-[state=active]:shadow-none px-4 py-2.5 text-sm font-medium text-gray-500">
+                  Equity Growth
                 </TabsTrigger>
-                <TabsTrigger
-                  value="timeline"
-                  className="flex-1 min-w-[120px] gap-1.5 text-xs md:text-sm font-body data-[state=active]:bg-white data-[state=active]:shadow-sm"
-                >
-                  <Building className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Purchase</span> Timeline
+                <TabsTrigger value="timeline" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:text-blue-600 data-[state=active]:shadow-none px-4 py-2.5 text-sm font-medium text-gray-500">
+                  Purchase Timeline
                 </TabsTrigger>
-                <TabsTrigger
-                  value="cashflow"
-                  className="flex-1 min-w-[120px] gap-1.5 text-xs md:text-sm font-body data-[state=active]:bg-white data-[state=active]:shadow-sm"
-                >
-                  <BarChart3 className="w-3.5 h-3.5" />
+                <TabsTrigger value="cashflow" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:text-blue-600 data-[state=active]:shadow-none px-4 py-2.5 text-sm font-medium text-gray-500">
                   Cash Flow
                 </TabsTrigger>
-                <TabsTrigger
-                  value="summary"
-                  className="flex-1 min-w-[120px] gap-1.5 text-xs md:text-sm font-body data-[state=active]:bg-white data-[state=active]:shadow-sm"
-                >
-                  <Table2 className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Yearly</span> Summary
+                <TabsTrigger value="summary" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:text-blue-600 data-[state=active]:shadow-none px-4 py-2.5 text-sm font-medium text-gray-500">
+                  Yearly Summary
                 </TabsTrigger>
-                <TabsTrigger
-                  value="assumptions"
-                  className="flex-1 min-w-[120px] gap-1.5 text-xs md:text-sm font-body data-[state=active]:bg-white data-[state=active]:shadow-sm"
-                >
-                  <BookOpen className="w-3.5 h-3.5" />
+                <TabsTrigger value="assumptions" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:text-blue-600 data-[state=active]:shadow-none px-4 py-2.5 text-sm font-medium text-gray-500">
                   Assumptions
                 </TabsTrigger>
-                <TabsTrigger
-                  value="calculations"
-                  className="flex-1 min-w-[120px] gap-1.5 text-xs md:text-sm font-body data-[state=active]:bg-white data-[state=active]:shadow-sm"
-                >
-                  <Calculator className="w-3.5 h-3.5" />
+                <TabsTrigger value="calculations" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:text-blue-600 data-[state=active]:shadow-none px-4 py-2.5 text-sm font-medium text-gray-500">
                   Calculations
                 </TabsTrigger>
               </TabsList>
             </div>
 
-            <div className="p-4 md:p-6">
-              {/* Equity Growth Chart */}
+            <div className="p-4 md:p-5">
               <TabsContent value="equity" className="mt-0">
-                <div className="h-[350px] md:h-[400px]">
-                  <Line data={equityChartData} options={chartOptions as any} />
+                <div className="h-[300px] md:h-[380px]">
+                  <Line data={equityChartData} options={lineChartOptions as any} />
                 </div>
               </TabsContent>
 
-              {/* Purchase Timeline Chart */}
               <TabsContent value="timeline" className="mt-0">
-                <div className="h-[350px] md:h-[400px]">
-                  <Bar
-                    data={timelineChartData}
-                    options={timelineChartOptions as any}
-                  />
+                <div className="h-[300px] md:h-[380px]">
+                  <Bar data={timelineChartData} options={timelineOptions as any} />
                 </div>
               </TabsContent>
 
-              {/* Cash Flow Chart */}
               <TabsContent value="cashflow" className="mt-0">
-                <div className="h-[350px] md:h-[400px]">
-                  <Bar
-                    data={cashflowChartData}
-                    options={chartOptions as any}
-                  />
+                <div className="h-[300px] md:h-[380px]">
+                  <Bar data={cashflowChartData} options={cashflowOptions as any} />
                 </div>
               </TabsContent>
 
-              {/* Yearly Summary Table */}
               <TabsContent value="summary" className="mt-0">
-                <ScrollArea className="h-[400px] md:h-[450px]">
+                <ScrollArea className="h-[400px]">
                   <table className="w-full text-sm">
-                    <thead className="sticky top-0 bg-card z-10">
-                      <tr className="border-b-2 border-primary/20">
-                        <th className="text-left py-3 px-3 text-[0.7rem] font-semibold uppercase tracking-widest text-muted-foreground font-body">
-                          Year
-                        </th>
-                        <th className="text-left py-3 px-3 text-[0.7rem] font-semibold uppercase tracking-widest text-muted-foreground font-body">
-                          Properties
-                        </th>
-                        <th className="text-right py-3 px-3 text-[0.7rem] font-semibold uppercase tracking-widest text-muted-foreground font-body">
-                          Asset Value
-                        </th>
-                        <th className="text-right py-3 px-3 text-[0.7rem] font-semibold uppercase tracking-widest text-muted-foreground font-body">
-                          Loan Balance
-                        </th>
-                        <th className="text-right py-3 px-3 text-[0.7rem] font-semibold uppercase tracking-widest text-muted-foreground font-body">
-                          Net Equity
-                        </th>
-                        <th className="text-right py-3 px-3 text-[0.7rem] font-semibold uppercase tracking-widest text-muted-foreground font-body">
-                          Annual Cash Flow
-                        </th>
+                    <thead className="sticky top-0 bg-white z-10">
+                      <tr className="border-b-2 border-gray-200">
+                        <th className="text-left py-2.5 px-3 text-xs font-medium text-gray-500">Year</th>
+                        <th className="text-left py-2.5 px-3 text-xs font-medium text-gray-500">Properties</th>
+                        <th className="text-right py-2.5 px-3 text-xs font-medium text-gray-500">Asset Value</th>
+                        <th className="text-right py-2.5 px-3 text-xs font-medium text-gray-500">Loan Balance</th>
+                        <th className="text-right py-2.5 px-3 text-xs font-medium text-gray-500">Net Equity</th>
+                        <th className="text-right py-2.5 px-3 text-xs font-medium text-gray-500">Annual Cash Flow</th>
                       </tr>
                     </thead>
                     <tbody>
                       {results.yearlyData.map((row, i) => (
-                        <tr
-                          key={i}
-                          className="border-b border-border/40 hover:bg-secondary/30 transition-colors"
-                        >
-                          <td className="py-2.5 px-3 font-mono text-xs">
-                            {row.calendarYear}
-                          </td>
-                          <td className="py-2.5 px-3 font-mono text-xs">
-                            {row.propertiesOwned}
-                          </td>
-                          <td className="py-2.5 px-3 font-mono text-xs text-right">
-                            RM {formatNumber(row.totalAssetValue.toFixed(0))}
-                          </td>
-                          <td className="py-2.5 px-3 font-mono text-xs text-right text-rose-700">
-                            RM {formatNumber(row.totalLoanBalance.toFixed(0))}
-                          </td>
-                          <td className="py-2.5 px-3 font-mono text-xs text-right font-semibold text-primary">
-                            RM {formatNumber(row.netEquity.toFixed(0))}
-                          </td>
-                          <td
-                            className={`py-2.5 px-3 font-mono text-xs text-right ${
-                              row.annualCashFlow >= 0
-                                ? "text-green-700"
-                                : "text-rose-700"
-                            }`}
-                          >
+                        <tr key={i} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                          <td className="py-2 px-3 font-mono text-xs text-gray-700">{row.calendarYear}</td>
+                          <td className="py-2 px-3 font-mono text-xs text-gray-700">{row.propertiesOwned}</td>
+                          <td className="py-2 px-3 font-mono text-xs text-right text-gray-700">RM {formatNumber(row.totalAssetValue.toFixed(0))}</td>
+                          <td className="py-2 px-3 font-mono text-xs text-right text-red-600">RM {formatNumber(row.totalLoanBalance.toFixed(0))}</td>
+                          <td className="py-2 px-3 font-mono text-xs text-right font-medium text-blue-600">RM {formatNumber(row.netEquity.toFixed(0))}</td>
+                          <td className={`py-2 px-3 font-mono text-xs text-right ${row.annualCashFlow >= 0 ? "text-green-600" : "text-red-600"}`}>
                             RM {formatNumber(row.annualCashFlow.toFixed(0))}
                           </td>
                         </tr>
@@ -441,96 +298,32 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
                 </ScrollArea>
               </TabsContent>
 
-              {/* Assumptions */}
               <TabsContent value="assumptions" className="mt-0">
-                <div className="bg-primary/5 border-l-4 border-primary rounded-r-lg p-5 md:p-6">
-                  <h3 className="font-display text-lg font-semibold text-primary mb-4">
-                    Calculation Assumptions
-                  </h3>
-                  <ul className="space-y-3 text-sm font-body text-foreground/80 leading-relaxed">
-                    <li className="flex gap-2">
-                      <span className="text-primary mt-0.5 shrink-0">—</span>
-                      Rental income is FIXED at original property price x rental
-                      yield (no inflation adjustment)
-                    </li>
-                    <li className="flex gap-2">
-                      <span className="text-primary mt-0.5 shrink-0">—</span>
-                      Property appreciation is compounded annually
-                    </li>
-                    <li className="flex gap-2">
-                      <span className="text-primary mt-0.5 shrink-0">—</span>
-                      Loan interest rate remains constant throughout the loan
-                      tenure
-                    </li>
-                    <li className="flex gap-2">
-                      <span className="text-primary mt-0.5 shrink-0">—</span>
-                      No additional expenses beyond mortgage payments
-                    </li>
-                    <li className="flex gap-2">
-                      <span className="text-primary mt-0.5 shrink-0">—</span>
-                      Properties are purchased at regular intervals until maximum
-                      is reached
-                    </li>
-                    <li className="flex gap-2">
-                      <span className="text-primary mt-0.5 shrink-0">—</span>
-                      All properties have the same price and characteristics
-                    </li>
-                    <li className="flex gap-2">
-                      <span className="text-primary mt-0.5 shrink-0">—</span>
-                      No property sales during the investment period
-                    </li>
-                    <li className="flex gap-2">
-                      <span className="text-primary mt-0.5 shrink-0">—</span>
-                      Cash flow = Rental Income - Mortgage Installment (no other
-                      expenses)
-                    </li>
+                <div className="bg-blue-50 border-l-4 border-blue-500 rounded-r-md p-5">
+                  <h3 className="text-base font-medium text-blue-700 mb-3">Calculation Assumptions</h3>
+                  <ul className="space-y-2 text-sm text-gray-700 leading-relaxed list-disc list-inside">
+                    <li>Rental income is FIXED at original property price × rental yield (no inflation adjustment)</li>
+                    <li>Property appreciation is compounded annually</li>
+                    <li>Loan interest rate remains constant throughout the loan tenure</li>
+                    <li>No additional expenses beyond mortgage payments</li>
+                    <li>Properties are purchased at regular intervals until maximum is reached</li>
+                    <li>All properties have the same price and characteristics</li>
+                    <li>No property sales during the investment period</li>
+                    <li>Cash flow = Rental Income - Mortgage Installment (no other expenses)</li>
                   </ul>
                 </div>
               </TabsContent>
 
-              {/* Calculations */}
               <TabsContent value="calculations" className="mt-0">
-                <div className="bg-green-50 border-l-4 border-green-600 rounded-r-lg p-5 md:p-6">
-                  <h3 className="font-display text-lg font-semibold text-green-700 mb-4">
-                    How Calculations Work
-                  </h3>
-                  <div className="space-y-4 text-sm font-body text-foreground/80 leading-relaxed">
-                    <p>
-                      <strong className="text-foreground">
-                        Property Value Growth:
-                      </strong>{" "}
-                      Each property appreciates annually at the specified rate.
-                    </p>
-                    <p>
-                      <strong className="text-foreground">
-                        Rental Income:
-                      </strong>{" "}
-                      FIXED at Original Price x Rental Yield (does not increase
-                      with property value)
-                    </p>
-                    <p>
-                      <strong className="text-foreground">
-                        Mortgage Calculation:
-                      </strong>{" "}
-                      Fixed monthly payments calculated using standard
-                      amortization formula.
-                    </p>
-                    <p>
-                      <strong className="text-foreground">Cash Flow:</strong>{" "}
-                      Annual rental income minus annual mortgage payments.
-                    </p>
-                    <p>
-                      <strong className="text-foreground">Net Equity:</strong>{" "}
-                      Total property values minus total loan balances plus
-                      cumulative cash flow.
-                    </p>
-                    <p>
-                      <strong className="text-foreground">
-                        Below Market Value:
-                      </strong>{" "}
-                      When enabled, you purchase at a discount but properties
-                      appreciate from full market value.
-                    </p>
+                <div className="bg-green-50 border-l-4 border-green-500 rounded-r-md p-5">
+                  <h3 className="text-base font-medium text-green-700 mb-3">How Calculations Work</h3>
+                  <div className="space-y-3 text-sm text-gray-700 leading-relaxed">
+                    <p><strong>Property Value Growth:</strong> Each property appreciates annually at the specified rate.</p>
+                    <p><strong>Rental Income:</strong> FIXED at Original Price × Rental Yield (does not increase with property value)</p>
+                    <p><strong>Mortgage Calculation:</strong> Fixed monthly payments calculated using standard amortization formula.</p>
+                    <p><strong>Cash Flow:</strong> Annual rental income minus annual mortgage payments.</p>
+                    <p><strong>Net Equity:</strong> Total property values minus total loan balances plus cumulative cash flow.</p>
+                    <p><strong>Below Market Value:</strong> When enabled, you purchase at a discount but properties appreciate from full market value.</p>
                   </div>
                 </div>
               </TabsContent>
