@@ -27,12 +27,38 @@ Guidelines:
   • **Recommendations** (specific, actionable suggestions)
 - For follow-up questions, be conversational and direct
 - Never give absolute financial advice — always frame as "based on this simulation" and remind them to consult a licensed financial advisor for actual investment decisions
-- Keep responses focused and practical — this is a tool for Malaysian property investors`;
+- Keep responses focused and practical — this is a tool for Malaysian property investors
+
+IMPORTANT: At the end of EVERY response, you MUST include a section with exactly 3 follow-up suggestions the user might want to ask next. Format them as a JSON block at the very end of your response, after all your analysis text, like this:
+
+\`\`\`suggestions
+["What if I change to 90% loan instead?", "How can I improve my cash flow?", "What's the risk if interest rates rise to 6%?"]
+\`\`\`
+
+The suggestions should be:
+- Contextually relevant to what was just discussed
+- Actionable and specific to their simulation
+- Varied (mix of "what if", risk analysis, and optimization questions)
+- Short (under 50 characters each ideally)`;
 
 const messageSchema = z.object({
   role: z.enum(["system", "user", "assistant"]),
   content: z.string(),
 });
+
+function parseSuggestions(content: string): { text: string; suggestions: string[] } {
+  const suggestionsMatch = content.match(/```suggestions\s*\n?\s*(\[[\s\S]*?\])\s*\n?\s*```/);
+  if (suggestionsMatch) {
+    try {
+      const suggestions = JSON.parse(suggestionsMatch[1]);
+      const text = content.replace(/```suggestions[\s\S]*?```/, "").trim();
+      return { text, suggestions };
+    } catch {
+      return { text: content, suggestions: [] };
+    }
+  }
+  return { text: content, suggestions: [] };
+}
 
 export const aiRouter = router({
   chat: publicProcedure
@@ -56,11 +82,13 @@ export const aiRouter = router({
         messages: llmMessages,
       });
 
-      const content = result.choices?.[0]?.message?.content;
-      if (!content || typeof content !== "string") {
+      const rawContent = result.choices?.[0]?.message?.content;
+      if (!rawContent || typeof rawContent !== "string") {
         throw new Error("No response from AI");
       }
 
-      return { content };
+      const { text, suggestions } = parseSuggestions(rawContent);
+
+      return { content: text, suggestions };
     }),
 });

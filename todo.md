@@ -15,3 +15,8 @@
 - [x] AI Financial Planner slide-in chat panel UI
 - [x] Auto-analyze simulation on chat open
 - [x] Floating AI button + header AI button + inline AI button after calculate
+- [x] AI tab next to title — grayed/muted before calculation, gradient glow after
+- [x] Auto-trigger AI analysis in background immediately on Calculate
+- [x] Show "AI is thinking..." loading state in tab and chat
+- [x] Clickable recommendation chips after each AI response
+- [x] Remove floating AI button and header AI button (replaced by tab)

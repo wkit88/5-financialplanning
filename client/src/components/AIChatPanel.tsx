@@ -1,22 +1,40 @@
 /*
- * AI Financial Planner chat panel.
- * Slides in from the right. Uses the pre-built AIChatBox with custom styling.
- * Receives simulation context and auto-triggers initial analysis.
+ * AI Financial Planner — inline chat section.
+ * Auto-triggers analysis on calculate. Shows recommendation chips after each response.
+ * Exposed via ref so parent can trigger analysis externally.
+ * Reports loading/ready status to parent via onStatusChange callback.
  */
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 import { trpc } from "@/lib/trpc";
 import type { FullSimulationResult, CalculatorInputs } from "@/lib/calculator";
 import { formatNumber } from "@/lib/calculator";
-import type { Message } from "@/components/AIChatBox";
-import { AIChatBox } from "@/components/AIChatBox";
-import { X, Sparkles } from "lucide-react";
+import { Sparkles, Send, RotateCcw } from "lucide-react";
+import { Streamdown } from "streamdown";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
+type Message = {
+  role: "system" | "user" | "assistant";
+  content: string;
+};
+
+export type AIStatus = "idle" | "loading" | "ready" | "error";
+
+export interface AIChatPanelRef {
+  triggerAnalysis: (inputs: CalculatorInputs, results: FullSimulationResult) => void;
+}
 
 interface AIChatPanelProps {
-  isOpen: boolean;
-  onClose: () => void;
   results: FullSimulationResult | null;
   inputs: CalculatorInputs | null;
+  onStatusChange?: (status: AIStatus) => void;
 }
 
 function buildContextMessage(
@@ -59,158 +77,260 @@ function buildContextMessage(
 Please analyze my property investment plan and provide your professional assessment.`;
 }
 
-export default function AIChatPanel({
-  isOpen,
-  onClose,
-  results,
-  inputs,
-}: AIChatPanelProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [hasAutoAnalyzed, setHasAutoAnalyzed] = useState(false);
-  const lastContextRef = useRef<string>("");
+const AIChatPanel = forwardRef<AIChatPanelRef, AIChatPanelProps>(
+  ({ results, inputs, onStatusChange }, ref) => {
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [input, setInput] = useState("");
+    const [status, setStatus] = useState<AIStatus>("idle");
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const chatMutation = trpc.ai.chat.useMutation({
-    onSuccess: (response) => {
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: response.content },
-      ]);
-    },
-    onError: (error) => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: `Sorry, I encountered an error: ${error.message}. Please try again.`,
-        },
-      ]);
-    },
-  });
+    // Notify parent of status changes
+    const updateStatus = useCallback(
+      (newStatus: AIStatus) => {
+        setStatus(newStatus);
+        onStatusChange?.(newStatus);
+      },
+      [onStatusChange]
+    );
 
-  // Auto-trigger analysis when panel opens with new results
-  useEffect(() => {
-    if (!isOpen || !results || !inputs) return;
+    const chatMutation = trpc.ai.chat.useMutation({
+      onSuccess: (response) => {
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: response.content },
+        ]);
+        setSuggestions(response.suggestions || []);
+        updateStatus("ready");
+      },
+      onError: (error) => {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: `Sorry, I encountered an error: ${error.message}. Please try again.`,
+          },
+        ]);
+        setSuggestions([]);
+        updateStatus("error");
+      },
+    });
 
-    const contextKey = JSON.stringify({ inputs, r10: results.results10.netEquity });
+    // Expose trigger method to parent
+    useImperativeHandle(ref, () => ({
+      triggerAnalysis: (newInputs: CalculatorInputs, newResults: FullSimulationResult) => {
+        const contextMsg = buildContextMessage(newInputs, newResults);
+        const userMessage: Message = { role: "user", content: contextMsg };
+        setMessages([userMessage]);
+        setSuggestions([]);
+        updateStatus("loading");
+        chatMutation.mutate({ messages: [userMessage] });
+      },
+    }));
 
-    // Only auto-analyze if we have new data
-    if (contextKey !== lastContextRef.current) {
-      lastContextRef.current = contextKey;
-      setHasAutoAnalyzed(false);
-    }
+    // Scroll to bottom when messages change
+    useEffect(() => {
+      if (scrollRef.current) {
+        const viewport = scrollRef.current.querySelector(
+          "[data-radix-scroll-area-viewport]"
+        ) as HTMLDivElement;
+        if (viewport) {
+          requestAnimationFrame(() => {
+            viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
+          });
+        }
+      }
+    }, [messages, chatMutation.isPending, suggestions]);
 
-    if (!hasAutoAnalyzed) {
-      setHasAutoAnalyzed(true);
+    const handleSend = useCallback(
+      (content: string) => {
+        if (!content.trim() || chatMutation.isPending) return;
+        const newMessages: Message[] = [
+          ...messages,
+          { role: "user", content: content.trim() },
+        ];
+        setMessages(newMessages);
+        setSuggestions([]);
+        setInput("");
+        updateStatus("loading");
+        chatMutation.mutate({ messages: newMessages });
+      },
+      [messages, chatMutation, updateStatus]
+    );
+
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      handleSend(input);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSend(input);
+      }
+    };
+
+    const handleNewAnalysis = useCallback(() => {
+      if (!results || !inputs) return;
       const contextMsg = buildContextMessage(inputs, results);
       const userMessage: Message = { role: "user", content: contextMsg };
       setMessages([userMessage]);
-      chatMutation.mutate({
-        messages: [userMessage],
-      });
-    }
-  }, [isOpen, results, inputs, hasAutoAnalyzed]);
+      setSuggestions([]);
+      updateStatus("loading");
+      chatMutation.mutate({ messages: [userMessage] });
+    }, [results, inputs, chatMutation, updateStatus]);
 
-  const handleSendMessage = useCallback(
-    (content: string) => {
-      const newMessages: Message[] = [
-        ...messages,
-        { role: "user", content },
-      ];
-      setMessages(newMessages);
-      chatMutation.mutate({ messages: newMessages });
-    },
-    [messages, chatMutation]
-  );
+    const displayMessages = messages.filter((m) => m.role !== "system");
+    // Hide the first user message (context dump) — show AI response directly
+    const visibleMessages =
+      displayMessages.length > 0 && displayMessages[0].role === "user"
+        ? displayMessages.slice(1)
+        : displayMessages;
 
-  // Reset when panel closes
-  const handleClose = useCallback(() => {
-    onClose();
-  }, [onClose]);
-
-  const handleNewAnalysis = useCallback(() => {
-    if (!results || !inputs) return;
-    lastContextRef.current = "";
-    setHasAutoAnalyzed(false);
-    setMessages([]);
-  }, [results, inputs]);
-
-  return (
-    <>
-      {/* Backdrop */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/20 backdrop-blur-[2px] z-40 transition-opacity duration-300"
-          onClick={handleClose}
-        />
-      )}
-
-      {/* Panel */}
-      <div
-        className={`
-          fixed top-0 right-0 h-full z-50
-          w-full sm:w-[440px] md:w-[480px]
-          bg-white shadow-[-8px_0_32px_rgba(0,0,0,0.08)]
-          transform transition-transform duration-300 ease-out
-          ${isOpen ? "translate-x-0" : "translate-x-full"}
-          flex flex-col
-        `}
-      >
+    return (
+      <div className="apple-card overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#e5e5ea]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#e5e5ea]/60">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#0071e3] to-[#5856d6] flex items-center justify-center">
-              <Sparkles className="w-4.5 h-4.5 text-white" />
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#0071e3] to-[#5856d6] flex items-center justify-center shadow-[0_2px_8px_rgba(0,113,227,0.3)]">
+              <Sparkles className="w-4 h-4 text-white" />
             </div>
             <div>
               <h3 className="text-[15px] font-semibold text-[#1d1d1f] leading-tight">
                 AI Financial Planner
               </h3>
               <p className="text-[11px] text-[#86868b] leading-tight mt-0.5">
-                Powered by PropertyLab AI
+                {status === "loading"
+                  ? "AI is thinking..."
+                  : status === "ready"
+                  ? "Analysis ready"
+                  : "Powered by PropertyLab AI"}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {messages.length > 0 && (
-              <button
-                onClick={handleNewAnalysis}
-                className="text-[12px] font-medium text-[#0071e3] hover:text-[#0077ed] px-3 py-1.5 rounded-[8px] hover:bg-[#0071e3]/5 transition-colors"
-              >
-                New Analysis
-              </button>
-            )}
+          {messages.length > 1 && (
             <button
-              onClick={handleClose}
-              className="w-8 h-8 rounded-full hover:bg-[#f5f5f7] flex items-center justify-center transition-colors"
+              onClick={handleNewAnalysis}
+              className="flex items-center gap-1.5 text-[12px] font-medium text-[#0071e3] hover:text-[#0077ed] px-3 py-1.5 rounded-[8px] hover:bg-[#0071e3]/5 transition-colors"
             >
-              <X className="w-4 h-4 text-[#86868b]" />
+              <RotateCcw className="w-3 h-3" />
+              Re-analyze
             </button>
-          </div>
+          )}
         </div>
 
-        {/* Chat Area */}
-        <div className="flex-1 overflow-hidden">
-          <AIChatBox
-            messages={messages}
-            onSendMessage={handleSendMessage}
-            isLoading={chatMutation.isPending}
-            placeholder="Ask about your investment plan..."
-            height="100%"
-            emptyStateMessage="Run a simulation to get AI analysis"
-            className="border-0 shadow-none rounded-none"
-            suggestedPrompts={
-              messages.length === 0
-                ? []
-                : [
-                    "What if I reduce to 5 properties?",
-                    "Is my cash flow sustainable?",
-                    "Should I use 90% or 100% loan?",
-                    "When will I break even?",
-                  ]
-            }
-          />
+        {/* Messages */}
+        <div ref={scrollRef} className="max-h-[500px] overflow-hidden">
+          <ScrollArea className="h-full max-h-[500px]">
+            <div className="p-6 space-y-5">
+              {visibleMessages.map((message, index) => (
+                <div key={index}>
+                  {message.role === "assistant" ? (
+                    <div className="prose prose-sm max-w-none text-[14px] text-[#1d1d1f] leading-relaxed">
+                      <Streamdown>{message.content}</Streamdown>
+                    </div>
+                  ) : (
+                    <div className="flex justify-end">
+                      <div className="flex items-start gap-2 max-w-[85%]">
+                        <div className="bg-[#0071e3] text-white rounded-[14px] rounded-tr-[4px] px-4 py-2.5 text-[14px]">
+                          {message.content}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {/* Loading state */}
+              {chatMutation.isPending && (
+                <div className="flex items-center gap-3 py-2">
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#0071e3] to-[#5856d6] flex items-center justify-center animate-pulse">
+                    <Sparkles className="w-3.5 h-3.5 text-white" />
+                  </div>
+                  <div className="text-[14px] text-[#86868b] flex items-center gap-1">
+                    AI is thinking
+                    <span className="inline-flex">
+                      <span className="animate-bounce" style={{ animationDelay: "0ms" }}>.</span>
+                      <span className="animate-bounce" style={{ animationDelay: "150ms" }}>.</span>
+                      <span className="animate-bounce" style={{ animationDelay: "300ms" }}>.</span>
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Recommendation Chips */}
+              {suggestions.length > 0 && !chatMutation.isPending && (
+                <div className="pt-2">
+                  <p className="text-[11px] font-medium text-[#86868b] uppercase tracking-wider mb-2.5">
+                    Suggested follow-ups
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {suggestions.map((suggestion, i) => (
+                      <button
+                        key={i}
+                        onClick={() => handleSend(suggestion)}
+                        className="
+                          text-[13px] font-medium text-[#0071e3]
+                          bg-[#0071e3]/5 hover:bg-[#0071e3]/10
+                          border border-[#0071e3]/15 hover:border-[#0071e3]/25
+                          rounded-full px-4 py-2
+                          transition-all duration-200
+                          hover:-translate-y-[1px]
+                          active:translate-y-0
+                        "
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
         </div>
+
+        {/* Input Area */}
+        {(visibleMessages.length > 0 || chatMutation.isPending) && (
+          <form
+            onSubmit={handleSubmit}
+            className="flex items-end gap-2 px-5 py-4 border-t border-[#e5e5ea]/60 bg-[#fafafa]"
+          >
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask about your investment plan..."
+              rows={1}
+              className="
+                flex-1 resize-none min-h-[38px] max-h-[100px]
+                text-[14px] text-[#1d1d1f] placeholder-[#86868b]
+                bg-white border border-[#d2d2d7] rounded-[10px]
+                px-3.5 py-2
+                focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3]
+                transition-all duration-200
+              "
+            />
+            <button
+              type="submit"
+              disabled={!input.trim() || chatMutation.isPending}
+              className="
+                w-[38px] h-[38px] rounded-[10px] shrink-0
+                bg-[#0071e3] hover:bg-[#0077ed]
+                disabled:bg-[#d2d2d7] disabled:cursor-not-allowed
+                flex items-center justify-center
+                transition-all duration-200
+              "
+            >
+              <Send className="w-4 h-4 text-white" />
+            </button>
+          </form>
+        )}
       </div>
-    </>
-  );
-}
+    );
+  }
+);
+
+AIChatPanel.displayName = "AIChatPanel";
+export default AIChatPanel;
