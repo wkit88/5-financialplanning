@@ -24,3 +24,7 @@
 - [x] Move AI Financial Planner button next to title "Property Investment Simulator"
 - [x] Fix recommendation chips visibility after each AI response
 - [x] Add goal-based reverse planner mode (e.g. "I want RM 5M in 15 years")
+- [x] Stock reinvestment calculator logic (cashback + cash flow reinvestment)
+- [x] Stock input panel (dividend yield, discount, appreciation, DRIP, mortgage amount for cashback)
+- [x] Stock results panel (portfolio value, dividends, combined net worth chart)
+- [x] Integrate stock section into Home page after property results

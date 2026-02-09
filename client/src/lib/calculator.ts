@@ -361,6 +361,184 @@ export function calculatePropertyPlan(
   };
 }
 
+// ============================================================
+// Stock Reinvestment Simulator
+// ============================================================
+
+export interface StockInputs {
+  enableStockReinvestment: boolean;
+  // Stock assumptions
+  stockDividendYield: number; // e.g., 6 for 6%
+  stockDiscount: number; // e.g., 20 for 20% below market value
+  stockAppreciation: number; // e.g., 5 for 5% annual growth
+  reinvestDividends: boolean; // DRIP — reinvest dividends or take as cash
+  // Cashback calculation
+  mortgageApprovedAmount: number; // Bank-approved mortgage amount
+  // mortgageApprovedAmount > purchasePrice → cashback = difference
+}
+
+export interface StockYearlyData {
+  year: number;
+  calendarYear: number;
+  // Cash flow reinvestment
+  cashFlowInvested: number; // positive cash flow reinvested this year
+  cumulativeCashFlowInvested: number;
+  // Cashback lump sum
+  cashbackAmount: number; // only in year 0
+  // Stock portfolio
+  stockPortfolioValue: number;
+  stockCostBasis: number; // total amount invested
+  stockUnrealizedGain: number;
+  annualDividendIncome: number;
+  cumulativeDividends: number;
+  // Combined
+  combinedNetWorth: number; // property net equity + stock portfolio
+}
+
+export interface StockSimulationResult {
+  yearlyData: StockYearlyData[];
+  totalCashbackPerProperty: number; // cashback per property
+  totalCashbackAllProperties: number; // total cashback across all properties
+  stock10Year: { portfolioValue: number; totalDividends: number; totalInvested: number };
+  stock20Year: { portfolioValue: number; totalDividends: number; totalInvested: number };
+  stock30Year: { portfolioValue: number; totalDividends: number; totalInvested: number };
+}
+
+/**
+ * Calculate stock reinvestment portfolio.
+ * Two sources of investment:
+ * 1. Cashback = mortgageApprovedAmount - purchasePrice (per property, if positive)
+ *    Invested as lump sum when each property is purchased
+ * 2. Positive annual cash flow from property portfolio reinvested into stocks
+ *
+ * Stock is bought at a discount (below market value).
+ * Stocks appreciate annually and pay dividends.
+ * Dividends can be reinvested (DRIP) or taken as cash.
+ */
+export function calculateStockReinvestment(
+  stockInputs: StockInputs,
+  propertyInputs: CalculatorInputs,
+  propertyResult: FullSimulationResult
+): StockSimulationResult {
+  const {
+    stockDividendYield: divYieldPct,
+    stockDiscount: discountPct,
+    stockAppreciation: appreciationPct,
+    reinvestDividends,
+    mortgageApprovedAmount,
+  } = stockInputs;
+
+  const divYield = divYieldPct / 100;
+  const discount = discountPct / 100;
+  const appreciation = appreciationPct / 100;
+
+  // Cashback per property = mortgage approved - purchase price (only if positive)
+  const cashbackPerProperty = Math.max(0, mortgageApprovedAmount - propertyInputs.purchasePrice);
+
+  const years = 30;
+  const yearlyData: StockYearlyData[] = [];
+  let stockPortfolioValue = 0; // current market value of stock holdings
+  let totalSharesOwned = 0; // track shares for accurate valuation
+  let stockCostBasis = 0; // total amount invested
+  let cumulativeDividends = 0;
+  let cumulativeCashFlowInvested = 0;
+  let currentStockPrice = 1; // normalized starting price
+  const buyPrice = currentStockPrice * (1 - discount); // buy at discount
+
+  // Track how many properties have been purchased so far
+  // to know when new cashback lump sums come in
+  let prevPropertiesOwned = 0;
+
+  for (let year = 0; year <= years; year++) {
+    const propYearData = propertyResult.yearlyData[year];
+    if (!propYearData) break;
+
+    // Stock price appreciates each year
+    if (year > 0) {
+      currentStockPrice *= (1 + appreciation);
+    }
+
+    let cashFlowInvestedThisYear = 0;
+    let cashbackThisYear = 0;
+
+    if (year > 0) {
+      // 1. Cashback from newly purchased properties this year
+      const newProperties = propYearData.propertiesOwned - prevPropertiesOwned;
+      if (newProperties > 0 && cashbackPerProperty > 0) {
+        cashbackThisYear = newProperties * cashbackPerProperty;
+        // Buy stocks with cashback at current discounted price
+        const currentBuyPrice = currentStockPrice * (1 - discount);
+        const sharesBought = cashbackThisYear / currentBuyPrice;
+        totalSharesOwned += sharesBought;
+        stockCostBasis += cashbackThisYear;
+      }
+
+      // 2. Positive cash flow reinvested into stocks
+      const annualCashFlow = propYearData.annualCashFlow;
+      if (annualCashFlow > 0) {
+        cashFlowInvestedThisYear = annualCashFlow;
+        const currentBuyPrice = currentStockPrice * (1 - discount);
+        const sharesBought = cashFlowInvestedThisYear / currentBuyPrice;
+        totalSharesOwned += sharesBought;
+        stockCostBasis += cashFlowInvestedThisYear;
+        cumulativeCashFlowInvested += cashFlowInvestedThisYear;
+      }
+
+      // 3. Dividends
+      const annualDividend = stockPortfolioValue * divYield;
+      cumulativeDividends += annualDividend;
+
+      if (reinvestDividends && annualDividend > 0) {
+        // DRIP — reinvest dividends at current discounted price
+        const currentBuyPrice = currentStockPrice * (1 - discount);
+        const sharesBought = annualDividend / currentBuyPrice;
+        totalSharesOwned += sharesBought;
+        stockCostBasis += annualDividend;
+      }
+    }
+
+    prevPropertiesOwned = propYearData.propertiesOwned;
+
+    // Update portfolio value
+    stockPortfolioValue = totalSharesOwned * currentStockPrice;
+
+    const combinedNetWorth = propYearData.netEquity + stockPortfolioValue;
+
+    yearlyData.push({
+      year,
+      calendarYear: propYearData.calendarYear,
+      cashFlowInvested: cashFlowInvestedThisYear,
+      cumulativeCashFlowInvested,
+      cashbackAmount: cashbackThisYear,
+      stockPortfolioValue,
+      stockCostBasis,
+      stockUnrealizedGain: stockPortfolioValue - stockCostBasis,
+      annualDividendIncome: year > 0 ? stockPortfolioValue * divYield : 0,
+      cumulativeDividends,
+      combinedNetWorth,
+    });
+  }
+
+  const getYearMetrics = (y: number) => {
+    const d = yearlyData[y];
+    return d
+      ? { portfolioValue: d.stockPortfolioValue, totalDividends: d.cumulativeDividends, totalInvested: d.stockCostBasis }
+      : { portfolioValue: 0, totalDividends: 0, totalInvested: 0 };
+  };
+
+  // Count total properties ever purchased for total cashback
+  const totalProperties = propertyResult.yearlyData[years]?.propertiesOwned ?? 0;
+
+  return {
+    yearlyData,
+    totalCashbackPerProperty: cashbackPerProperty,
+    totalCashbackAllProperties: cashbackPerProperty * totalProperties,
+    stock10Year: getYearMetrics(10),
+    stock20Year: getYearMetrics(20),
+    stock30Year: getYearMetrics(30),
+  };
+}
+
 /**
  * Format a number with commas for display.
  */

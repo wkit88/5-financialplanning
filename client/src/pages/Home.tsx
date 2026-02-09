@@ -2,18 +2,24 @@
  * Home page — single-page layout with slide-in AI chat panel from the right.
  * AI button sits next to the page title. Grayed before calculation, glowing after.
  * AI analysis auto-triggers in background on Calculate.
+ * Stock Reinvestment section appears after property results.
  */
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import InputPanel, { type InputPanelRef } from "@/components/InputPanel";
 import ResultsPanel from "@/components/ResultsPanel";
+import StockInputPanel from "@/components/StockInputPanel";
+import StockResultsPanel from "@/components/StockResultsPanel";
 import SavedScenarios from "@/components/SavedScenarios";
 import CompareScenarios from "@/components/CompareScenarios";
 import AIChatPanel, { type AIChatPanelRef, type AIStatus } from "@/components/AIChatPanel";
 import {
   calculatePropertyPlan,
+  calculateStockReinvestment,
   type CalculatorInputs,
   type FullSimulationResult,
+  type StockInputs,
+  type StockSimulationResult,
 } from "@/lib/calculator";
 import { useScenarios, type SavedScenario } from "@/hooks/useScenarios";
 import { toast } from "sonner";
@@ -34,6 +40,9 @@ export default function Home() {
   const inputPanelRef = useRef<InputPanelRef>(null);
   const compareRef = useRef<HTMLDivElement>(null);
   const aiChatRef = useRef<AIChatPanelRef>(null);
+
+  // Stock reinvestment state
+  const [stockResults, setStockResults] = useState<StockSimulationResult | null>(null);
 
   const { scenarios, saveScenario, deleteScenario, renameScenario } = useScenarios();
 
@@ -64,15 +73,22 @@ export default function Home() {
     setResults(result);
     setLastInputs(inputs);
     setHasUserCalculated(true);
+    // Reset stock results when property plan changes
+    setStockResults(null);
 
     // Auto-trigger AI analysis in background
     setTimeout(() => {
       aiChatRef.current?.triggerAnalysis(inputs, result);
-      // Pulse the AI button to signal it's working
       setAiGlowPulse(true);
       setTimeout(() => setAiGlowPulse(false), 4000);
     }, 100);
   }, []);
+
+  const handleStockCalculate = useCallback((stockInputs: StockInputs) => {
+    if (!lastInputs || !results) return;
+    const stockResult = calculateStockReinvestment(stockInputs, lastInputs, results);
+    setStockResults(stockResult);
+  }, [lastInputs, results]);
 
   const handleLoadScenario = useCallback((inputs: CalculatorInputs) => {
     setExternalInputs({ ...inputs });
@@ -80,10 +96,10 @@ export default function Home() {
     setResults(result);
     setLastInputs(inputs);
     setHasUserCalculated(true);
+    setStockResults(null);
     toast.success("Scenario loaded — inputs updated and recalculated.");
     window.scrollTo({ top: 0, behavior: "smooth" });
 
-    // Auto-trigger AI for loaded scenario too
     setTimeout(() => {
       aiChatRef.current?.triggerAnalysis(inputs, result);
       setAiGlowPulse(true);
@@ -199,7 +215,6 @@ export default function Home() {
               }`}
             />
             <span>AI Financial Planner</span>
-            {/* Status indicator */}
             {!hasUserCalculated && (
               <span className="text-[10px] text-[#c7c7cc] font-normal ml-1">
                 Calculate first
@@ -219,7 +234,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Main Content — always visible, no tabs */}
+      {/* Main Content */}
       <main className="container py-6 md:py-8 space-y-8">
         <InputPanel
           ref={inputPanelRef}
@@ -292,6 +307,25 @@ export default function Home() {
 
         {results && <ResultsPanel results={results} />}
 
+        {/* ========== Stock Reinvestment Section ========== */}
+        {results && lastInputs && (
+          <>
+            <div className="pt-4">
+              <StockInputPanel
+                purchasePrice={lastInputs.purchasePrice}
+                onCalculate={handleStockCalculate}
+              />
+            </div>
+
+            {stockResults && (
+              <StockResultsPanel
+                stockResults={stockResults}
+                propertyResults={results}
+              />
+            )}
+          </>
+        )}
+
         {/* Saved Scenarios */}
         <SavedScenarios
           scenarios={scenarios}
@@ -314,7 +348,6 @@ export default function Home() {
       </main>
 
       {/* Slide-in AI Chat Panel from the Right */}
-      {/* Backdrop */}
       <div
         className={`
           fixed inset-0 bg-black/30 backdrop-blur-[2px] z-40
@@ -324,7 +357,6 @@ export default function Home() {
         onClick={() => setAiPanelOpen(false)}
       />
 
-      {/* Panel */}
       <div
         className={`
           fixed top-0 right-0 h-full w-full max-w-[480px] z-50
@@ -334,7 +366,6 @@ export default function Home() {
           flex flex-col
         `}
       >
-        {/* Panel Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#e5e5ea] bg-white shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#0071e3] to-[#5856d6] flex items-center justify-center shadow-[0_2px_8px_rgba(0,113,227,0.3)]">
@@ -361,7 +392,6 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Chat Content */}
         <div className="flex-1 overflow-hidden">
           <AIChatPanel
             ref={aiChatRef}
