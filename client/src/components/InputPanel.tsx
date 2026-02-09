@@ -79,7 +79,7 @@ export default function InputPanel({ onCalculate }: InputPanelProps) {
                 onChange={(e) => updateInput("purchasePrice", parseFloat(e.target.value) || 0)}
                 min={100000}
                 step={50000}
-                className="apple-input w-full font-mono"
+                className="apple-input w-full"
               />
             </div>
 
@@ -102,7 +102,7 @@ export default function InputPanel({ onCalculate }: InputPanelProps) {
                 value={inputs.maxProperties}
                 onChange={(e) => updateInput("maxProperties", parseInt(e.target.value) || 1)}
                 min={1} max={50} step={1}
-                className="apple-input w-full font-mono"
+                className="apple-input w-full"
               />
             </div>
 
@@ -128,7 +128,7 @@ export default function InputPanel({ onCalculate }: InputPanelProps) {
                   value={inputs.discountPercentage}
                   onChange={(e) => updateInput("discountPercentage", parseFloat(e.target.value) || 0)}
                   min={1} max={50} step={1}
-                  className="apple-input w-full font-mono"
+                  className="apple-input w-full"
                 />
               </div>
             )}
@@ -148,7 +148,7 @@ export default function InputPanel({ onCalculate }: InputPanelProps) {
                 value={inputs.appreciationRate}
                 onChange={(e) => updateInput("appreciationRate", parseFloat(e.target.value) || 0)}
                 min={0} max={20} step={0.5}
-                className="apple-input w-full font-mono"
+                className="apple-input w-full"
               />
             </div>
 
@@ -161,7 +161,7 @@ export default function InputPanel({ onCalculate }: InputPanelProps) {
                 value={inputs.rentalYield}
                 onChange={(e) => updateInput("rentalYield", parseFloat(e.target.value) || 0)}
                 min={0} max={20} step={0.5}
-                className="apple-input w-full font-mono"
+                className="apple-input w-full"
               />
             </div>
 
@@ -172,7 +172,7 @@ export default function InputPanel({ onCalculate }: InputPanelProps) {
                 value={inputs.interestRate}
                 onChange={(e) => updateInput("interestRate", parseFloat(e.target.value) || 0)}
                 min={0} max={10} step={0.1}
-                className="apple-input w-full font-mono"
+                className="apple-input w-full"
               />
             </div>
           </div>
@@ -191,7 +191,7 @@ export default function InputPanel({ onCalculate }: InputPanelProps) {
                 value={inputs.buyInterval}
                 onChange={(e) => updateInput("buyInterval", parseInt(e.target.value) || 1)}
                 min={1} max={5} step={1}
-                className="apple-input w-full font-mono"
+                className="apple-input w-full"
               />
             </div>
 
@@ -202,7 +202,7 @@ export default function InputPanel({ onCalculate }: InputPanelProps) {
                 value={inputs.startingYear}
                 onChange={(e) => updateInput("startingYear", parseInt(e.target.value) || 2026)}
                 min={2024} max={2050} step={1}
-                className="apple-input w-full font-mono"
+                className="apple-input w-full"
               />
             </div>
 
@@ -213,7 +213,7 @@ export default function InputPanel({ onCalculate }: InputPanelProps) {
                 value={inputs.loanTenure}
                 onChange={(e) => updateInput("loanTenure", parseInt(e.target.value) || 30)}
                 min={10} max={35} step={5}
-                className="apple-input w-full font-mono"
+                className="apple-input w-full"
               />
             </div>
           </div>

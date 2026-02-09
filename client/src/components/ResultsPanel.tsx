@@ -57,7 +57,7 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
   ], [results]);
 
   const fontFamily = "-apple-system, BlinkMacSystemFont, 'Inter', sans-serif";
-  const monoFont = "'JetBrains Mono', 'SF Mono', monospace";
+  const sansFont = "-apple-system, BlinkMacSystemFont, 'Inter', sans-serif";
 
   // Equity Growth Chart
   const equityChartData = useMemo(() => ({
@@ -171,7 +171,7 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
         intersect: false,
         backgroundColor: "rgba(29, 29, 31, 0.95)",
         titleFont: { family: fontFamily, size: 13, weight: "600" as const },
-        bodyFont: { family: monoFont, size: 12 },
+        bodyFont: { family: sansFont, size: 12 },
         padding: 14,
         cornerRadius: 10,
         displayColors: true,
@@ -193,9 +193,9 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
       y: {
         grid: { color: "rgba(0,0,0,0.04)", drawBorder: false },
         border: { display: false },
-        ...(title === "Purchase Timeline" ? { beginAtZero: true, ticks: { stepSize: 1, font: { family: monoFont, size: 11 }, color: "#86868b" } } : {
+        ...(title === "Purchase Timeline" ? { beginAtZero: true, ticks: { stepSize: 1, font: { family: sansFont, size: 11 }, color: "#86868b" } } : {
           ticks: {
-            font: { family: monoFont, size: 11 },
+            font: { family: sansFont, size: 11 },
             color: "#86868b",
             callback: (v: any) => "RM " + formatNumber(Number(v)),
           },
@@ -226,7 +226,7 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
             <p className="text-[12px] font-medium text-[#86868b] tracking-wide uppercase mb-2">
               {m.label}
             </p>
-            <p className="text-[26px] md:text-[30px] font-semibold text-[#1d1d1f] font-mono leading-none tracking-tight">
+            <p className="text-[26px] md:text-[30px] font-semibold text-[#1d1d1f] leading-none tracking-tight">
               {m.prefix && <span className="text-[18px] md:text-[20px] font-medium text-[#86868b] mr-1">{m.prefix}</span>}
               {m.value}
             </p>
@@ -296,12 +296,12 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
                 <tbody>
                   {results.yearlyData.map((row, i) => (
                     <tr key={i} className="border-b border-[#f5f5f7] hover:bg-[#f5f5f7]/60 transition-colors">
-                      <td className="py-2.5 px-3 font-mono text-[12px] text-[#1d1d1f]">{row.calendarYear}</td>
-                      <td className="py-2.5 px-3 font-mono text-[12px] text-[#1d1d1f]">{row.propertiesOwned}</td>
-                      <td className="py-2.5 px-3 font-mono text-[12px] text-right text-[#1d1d1f]">RM {formatNumber(row.totalAssetValue.toFixed(0))}</td>
-                      <td className="py-2.5 px-3 font-mono text-[12px] text-right text-[#ff3b30]">RM {formatNumber(row.totalLoanBalance.toFixed(0))}</td>
-                      <td className="py-2.5 px-3 font-mono text-[12px] text-right font-semibold text-[#0071e3]">RM {formatNumber(row.netEquity.toFixed(0))}</td>
-                      <td className={`py-2.5 px-3 font-mono text-[12px] text-right ${row.annualCashFlow >= 0 ? "text-[#34c759]" : "text-[#ff3b30]"}`}>
+                      <td className="py-2.5 px-3 text-[13px] text-[#1d1d1f]">{row.calendarYear}</td>
+                      <td className="py-2.5 px-3 text-[13px] text-[#1d1d1f]">{row.propertiesOwned}</td>
+                      <td className="py-2.5 px-3 text-[13px] text-right text-[#1d1d1f]">RM {formatNumber(row.totalAssetValue.toFixed(0))}</td>
+                      <td className="py-2.5 px-3 text-[13px] text-right text-[#ff3b30]">RM {formatNumber(row.totalLoanBalance.toFixed(0))}</td>
+                      <td className="py-2.5 px-3 text-[13px] text-right font-semibold text-[#0071e3]">RM {formatNumber(row.netEquity.toFixed(0))}</td>
+                      <td className={`py-2.5 px-3 text-[13px] text-right ${row.annualCashFlow >= 0 ? "text-[#34c759]" : "text-[#ff3b30]"}`}>
                         RM {formatNumber(row.annualCashFlow.toFixed(0))}
                       </td>
                     </tr>
