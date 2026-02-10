@@ -51,3 +51,8 @@
 - [x] Include combined net worth, stock portfolio value, dividends in AI context
 - [x] Update goal-based reverse planner to consider stock portfolio adjustments
 - [x] Add vitest for stock portfolio data in AI system prompt
+- [x] Add cash flow + cashback summary table below property charts
+- [x] Add "Reinvest to Stock" button below the summary table
+- [x] Restructure into 3 top-level tabs: Property Investment / Stock Investment / Combined Portfolio
+- [x] "Reinvest to Stock" button switches to Stock Investment tab
+- [x] Build Combined Portfolio tab with merged property + stock data

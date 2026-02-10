@@ -28,6 +28,9 @@ ChartJS.register(
 
 interface ResultsPanelProps {
   results: FullSimulationResult;
+  purchasePrice?: number;
+  loanAmount?: number;
+  onReinvestToStock?: () => void;
 }
 
 type TabKey = "equity" | "timeline" | "cashflow" | "summary" | "assumptions" | "calculations";
@@ -41,7 +44,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "calculations", label: "Calculations" },
 ];
 
-export default function ResultsPanel({ results }: ResultsPanelProps) {
+export default function ResultsPanel({ results, purchasePrice, loanAmount, onReinvestToStock }: ResultsPanelProps) {
   const resultsRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("equity");
 
@@ -358,6 +361,120 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
             </div>
           )}
         </div>
+      </div>
+
+      {/* ===== Cash Flow & Cashback Summary ===== */}
+      <CashFlowSummaryTable
+        results={results}
+        purchasePrice={purchasePrice}
+        loanAmount={loanAmount}
+        onReinvestToStock={onReinvestToStock}
+      />
+    </div>
+  );
+}
+
+/* ---------- Cash Flow & Cashback Summary Table ---------- */
+function CashFlowSummaryTable({
+  results,
+  purchasePrice,
+  loanAmount,
+  onReinvestToStock,
+}: {
+  results: FullSimulationResult;
+  purchasePrice?: number;
+  loanAmount?: number;
+  onReinvestToStock?: () => void;
+}) {
+  const cashbackPerProperty = Math.max(0, (loanAmount ?? 0) - (purchasePrice ?? 0));
+  const yearlyData = results.yearlyData;
+
+  // Build summary rows for milestone years
+  const milestoneYears = [1, 5, 10, 15, 20, 25, 30];
+  const rows = milestoneYears
+    .map((yr) => yearlyData.find((d) => d.year === yr))
+    .filter(Boolean) as typeof yearlyData;
+
+  // Calculate cumulative cashback: each time a new property is purchased, cashback is received
+  const getCumulativeCashback = (year: number) => {
+    const row = yearlyData.find((d) => d.year === year);
+    if (!row) return 0;
+    return row.propertiesOwned * cashbackPerProperty;
+  };
+
+  return (
+    <div className="apple-card overflow-hidden">
+      <div className="p-5 md:p-6">
+        <h3 className="text-[16px] font-semibold text-[#1d1d1f] mb-1">
+          Cash Flow & Cashback Summary
+        </h3>
+        <p className="text-[13px] text-[#86868b] mb-5">
+          Available funds from your property portfolio that can be reinvested into stocks.
+        </p>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-[13px]">
+            <thead>
+              <tr>
+                <th className="text-left py-3 px-3 text-[11px] font-semibold text-[#86868b] uppercase tracking-wider border-b-2 border-[#e5e5ea]">Year</th>
+                <th className="text-right py-3 px-3 text-[11px] font-semibold text-[#86868b] uppercase tracking-wider border-b-2 border-[#e5e5ea]">Properties</th>
+                <th className="text-right py-3 px-3 text-[11px] font-semibold text-[#86868b] uppercase tracking-wider border-b-2 border-[#e5e5ea]">Annual Cash Flow</th>
+                <th className="text-right py-3 px-3 text-[11px] font-semibold text-[#86868b] uppercase tracking-wider border-b-2 border-[#e5e5ea]">Cumulative Cash Flow</th>
+                <th className="text-right py-3 px-3 text-[11px] font-semibold text-[#86868b] uppercase tracking-wider border-b-2 border-[#e5e5ea]">Cashback / Property</th>
+                <th className="text-right py-3 px-3 text-[11px] font-semibold text-[#86868b] uppercase tracking-wider border-b-2 border-[#e5e5ea]">Total Cashback</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.year} className="border-b border-[#f5f5f7] hover:bg-[#f5f5f7]/60 transition-colors">
+                  <td className="py-2.5 px-3 text-[13px] font-medium text-[#1d1d1f]">{row.calendarYear}</td>
+                  <td className="py-2.5 px-3 text-[13px] text-right text-[#1d1d1f]">{row.propertiesOwned}</td>
+                  <td className={`py-2.5 px-3 text-[13px] text-right font-medium ${row.annualCashFlow >= 0 ? "text-[#34c759]" : "text-[#ff3b30]"}`}>
+                    RM {formatNumber(row.annualCashFlow.toFixed(0))}
+                  </td>
+                  <td className={`py-2.5 px-3 text-[13px] text-right ${row.cumulativeCashFlow >= 0 ? "text-[#34c759]" : "text-[#ff3b30]"}`}>
+                    RM {formatNumber(row.cumulativeCashFlow.toFixed(0))}
+                  </td>
+                  <td className="py-2.5 px-3 text-[13px] text-right text-[#0071e3]">
+                    RM {formatNumber(cashbackPerProperty)}
+                  </td>
+                  <td className="py-2.5 px-3 text-[13px] text-right font-medium text-[#0071e3]">
+                    RM {formatNumber(getCumulativeCashback(row.year))}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Reinvest to Stock Button */}
+        {onReinvestToStock && (
+          <div className="mt-6 flex justify-center">
+            <button
+              onClick={onReinvestToStock}
+              className="
+                flex items-center gap-2.5 px-8 py-3 text-[15px] font-semibold
+                text-white bg-gradient-to-r from-[#34c759] to-[#30b350]
+                hover:from-[#30b350] hover:to-[#2da048]
+                rounded-[12px] transition-all duration-200
+                shadow-[0_4px_14px_rgba(52,199,89,0.35)]
+                hover:shadow-[0_6px_20px_rgba(52,199,89,0.45)]
+                hover:-translate-y-[1px]
+                active:translate-y-0
+              "
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                <polyline points="17 6 23 6 23 12" />
+              </svg>
+              Reinvest to Stock
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14" />
+                <path d="m12 5 7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

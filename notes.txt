@@ -1,0 +1,6 @@
+The Cash Flow & Cashback Summary table renders correctly below the property charts.
+The "Reinvest to Stock" button is only shown when hasUserCalculated is true (i.e., after user clicks Calculate).
+The default calculation on mount does NOT set hasUserCalculated, so the button won't appear until user clicks Calculate.
+This is intentional - user must explicitly calculate before seeing the reinvest button.
+
+Need to click "Calculate My Property Plan" to see the Reinvest to Stock button.
