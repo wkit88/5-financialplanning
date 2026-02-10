@@ -106,13 +106,14 @@ export default function CompareScenarios({ scenarioA, scenarioB, onClose }: Comp
   // Input comparison rows
   const inputRows = useMemo(() => [
     { label: "Purchase Price", a: scenarioA.inputs.purchasePrice, b: scenarioB.inputs.purchasePrice, prefix: "RM " },
-    { label: "Loan Type", a: scenarioA.inputs.loanType * 100, b: scenarioB.inputs.loanType * 100, suffix: "%" },
+    { label: "Market Value", a: scenarioA.inputs.currentMarketValue ?? 0, b: scenarioB.inputs.currentMarketValue ?? 0, prefix: "RM " },
+    { label: "Loan Amount", a: scenarioA.inputs.loanAmount ?? 0, b: scenarioB.inputs.loanAmount ?? 0, prefix: "RM " },
     { label: "Max Properties", a: scenarioA.inputs.maxProperties, b: scenarioB.inputs.maxProperties, isCount: true },
     { label: "Appreciation Rate", a: scenarioA.inputs.appreciationRate, b: scenarioB.inputs.appreciationRate, suffix: "%" },
     { label: "Rental Yield", a: scenarioA.inputs.rentalYield, b: scenarioB.inputs.rentalYield, suffix: "%" },
     { label: "Interest Rate", a: scenarioA.inputs.interestRate, b: scenarioB.inputs.interestRate, suffix: "%" },
     { label: "Buy Interval", a: scenarioA.inputs.buyInterval, b: scenarioB.inputs.buyInterval, suffix: " yr", isCount: true },
-    { label: "Loan Tenure", a: scenarioA.inputs.loanTenure, b: scenarioB.inputs.loanTenure, suffix: " yr", isCount: true },
+    { label: "Age", a: scenarioA.inputs.age ?? 30, b: scenarioB.inputs.age ?? 30, suffix: " yr", isCount: true },
     { label: "Annual Expense/Property", a: fullA.annualExpensePerProperty, b: fullB.annualExpensePerProperty, prefix: "RM " },
   ], [scenarioA, scenarioB, fullA, fullB]);
 

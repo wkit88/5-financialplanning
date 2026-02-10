@@ -51,16 +51,15 @@ export default function Home() {
   useEffect(() => {
     const defaultInputs: CalculatorInputs = {
       purchasePrice: 500000,
-      loanType: 1.0,
+      currentMarketValue: 600000,
+      loanAmount: 600000,
       maxProperties: 10,
-      belowMarketValue: false,
-      discountPercentage: 10,
       appreciationRate: 3,
       rentalYield: 8,
       interestRate: 4,
       buyInterval: 1,
       startingYear: 2026,
-      loanTenure: 30,
+      age: 30,
       expenseType: "percentage" as const,
       expenseValue: 0,
     };
@@ -315,6 +314,7 @@ export default function Home() {
             <div className="pt-4">
               <StockInputPanel
                 purchasePrice={lastInputs.purchasePrice}
+                loanAmount={lastInputs.loanAmount}
                 onCalculate={handleStockCalculate}
               />
             </div>
@@ -325,6 +325,7 @@ export default function Home() {
                 propertyResults={results}
                 stockInputs={lastStockInputs!}
                 purchasePrice={lastInputs?.purchasePrice ?? 500000}
+                loanAmount={lastInputs?.loanAmount ?? 600000}
               />
             )}
           </>

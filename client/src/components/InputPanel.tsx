@@ -2,19 +2,19 @@
  * Apple-level UI/UX: floating shadow cards, filled inputs, generous spacing,
  * refined typography hierarchy, tactile button with hover lift.
  * Supports external inputs (for loading saved scenarios).
- * Includes expense input (fixed RM or % of purchase price).
+ * Includes monthly expense input (fixed RM or % of instalment).
  */
 
 import { useState, useCallback, useEffect, useImperativeHandle, forwardRef } from "react";
 import type { CalculatorInputs } from "@/lib/calculator";
+import { calculateTenure } from "@/lib/calculator";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Info } from "lucide-react";
+import { Info, AlertCircle } from "lucide-react";
 
 interface InputPanelProps {
   onCalculate: (inputs: CalculatorInputs) => void;
@@ -43,16 +43,15 @@ function FieldLabel({ children, tip }: { children: React.ReactNode; tip?: string
 
 const DEFAULT_INPUTS: CalculatorInputs = {
   purchasePrice: 500000,
-  loanType: 1.0,
+  currentMarketValue: 600000,
+  loanAmount: 600000,
   maxProperties: 10,
-  belowMarketValue: false,
-  discountPercentage: 10,
   appreciationRate: 3,
   rentalYield: 8,
   interestRate: 4,
   buyInterval: 1,
   startingYear: 2026,
-  loanTenure: 30,
+  age: 30,
   expenseType: "percentage",
   expenseValue: 0,
 };
@@ -62,7 +61,6 @@ const InputPanel = forwardRef<InputPanelRef, InputPanelProps>(
     const [inputs, setInputs] = useState<CalculatorInputs>(DEFAULT_INPUTS);
 
     // When externalInputs change (scenario loaded), update local state
-    // Handle backward compatibility for saved scenarios without expense fields
     useEffect(() => {
       if (externalInputs) {
         setInputs({
@@ -89,8 +87,31 @@ const InputPanel = forwardRef<InputPanelRef, InputPanelProps>(
       onCalculate(inputs);
     }, [inputs, onCalculate]);
 
+    // Derived values
+    const loanTenure = calculateTenure(inputs.age);
+    const cashback = Math.max(0, inputs.loanAmount - inputs.purchasePrice);
+
+    // Estimate monthly payment for expense preview
+    const monthlyRate = (inputs.interestRate / 100) / 12;
+    const numPayments = loanTenure * 12;
+    const estimatedMonthlyPayment = monthlyRate === 0
+      ? inputs.loanAmount / numPayments
+      : (inputs.loanAmount * monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1);
+
+    const monthlyExpense = inputs.expenseType === "fixed"
+      ? inputs.expenseValue
+      : estimatedMonthlyPayment * (inputs.expenseValue / 100);
+
     return (
       <div className="space-y-6">
+        {/* Explanation note */}
+        <div className="flex items-start gap-3 bg-[#f0f5ff] border border-[#0071e3]/10 rounded-[12px] px-5 py-4">
+          <AlertCircle className="w-5 h-5 text-[#0071e3] mt-0.5 shrink-0" />
+          <p className="text-[13px] text-[#424245] leading-relaxed">
+            This simulator assumes you purchase multiple properties with the <strong>same purchase price</strong>, <strong>same market value</strong>, and <strong>same financial assumptions</strong> as defined below. Each property follows an identical loan, rental, and expense structure.
+          </p>
+        </div>
+
         {/* 3-column grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
 
@@ -101,7 +122,7 @@ const InputPanel = forwardRef<InputPanelRef, InputPanelProps>(
             </h3>
             <div className="space-y-5">
               <div>
-                <FieldLabel>Purchase Price (RM)</FieldLabel>
+                <FieldLabel tip="The price you pay for each property">Purchase Price (RM)</FieldLabel>
                 <input
                   type="number"
                   value={inputs.purchasePrice}
@@ -113,54 +134,28 @@ const InputPanel = forwardRef<InputPanelRef, InputPanelProps>(
               </div>
 
               <div>
-                <FieldLabel>Loan Type</FieldLabel>
-                <select
-                  value={String(inputs.loanType)}
-                  onChange={(e) => updateInput("loanType", parseFloat(e.target.value))}
-                  className="apple-input w-full"
-                >
-                  <option value="0.9">90% Loan</option>
-                  <option value="1">100% Loan (Full Financing)</option>
-                </select>
-              </div>
-
-              <div>
-                <FieldLabel tip="Maximum number of properties you plan to acquire">Maximum Properties</FieldLabel>
+                <FieldLabel tip="The actual market value of the property. If higher than purchase price, you're buying below market value.">
+                  Current Market Value (RM)
+                </FieldLabel>
                 <input
                   type="number"
-                  value={inputs.maxProperties}
-                  onChange={(e) => updateInput("maxProperties", parseInt(e.target.value) || 1)}
-                  min={1} max={50} step={1}
+                  value={inputs.currentMarketValue}
+                  onChange={(e) => updateInput("currentMarketValue", parseFloat(e.target.value) || 0)}
+                  min={100000}
+                  step={50000}
                   className="apple-input w-full"
                 />
+                {inputs.currentMarketValue > inputs.purchasePrice && (
+                  <p className="text-[12px] text-[#34c759] mt-1.5 font-medium">
+                    Buying {((1 - inputs.purchasePrice / inputs.currentMarketValue) * 100).toFixed(1)}% below market value
+                  </p>
+                )}
+                {inputs.currentMarketValue < inputs.purchasePrice && (
+                  <p className="text-[12px] text-[#ff9500] mt-1.5 font-medium">
+                    Market value is below purchase price
+                  </p>
+                )}
               </div>
-
-              <div className="flex items-center gap-3 pt-1">
-                <Checkbox
-                  id="belowMarket"
-                  checked={inputs.belowMarketValue}
-                  onCheckedChange={(checked) => updateInput("belowMarketValue", checked === true)}
-                  className="rounded-[5px] border-[#d2d2d7] data-[state=checked]:bg-[#0071e3] data-[state=checked]:border-[#0071e3]"
-                />
-                <Label htmlFor="belowMarket" className="text-[14px] text-[#1d1d1f] cursor-pointer select-none">
-                  Buy below market value
-                </Label>
-              </div>
-
-              {inputs.belowMarketValue && (
-                <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                  <FieldLabel tip="Percentage below market value (e.g., 10% means you buy at 90% of market value)">
-                    Purchase Discount (%)
-                  </FieldLabel>
-                  <input
-                    type="number"
-                    value={inputs.discountPercentage}
-                    onChange={(e) => updateInput("discountPercentage", parseFloat(e.target.value) || 0)}
-                    min={1} max={50} step={1}
-                    className="apple-input w-full"
-                  />
-                </div>
-              )}
             </div>
           </div>
 
@@ -171,27 +166,25 @@ const InputPanel = forwardRef<InputPanelRef, InputPanelProps>(
             </h3>
             <div className="space-y-5">
               <div>
-                <FieldLabel tip="Average annual increase in property value">Annual Capital Appreciation (%)</FieldLabel>
+                <FieldLabel tip="Total loan amount from the bank per property">Loan Amount (RM)</FieldLabel>
                 <input
                   type="number"
-                  value={inputs.appreciationRate}
-                  onChange={(e) => updateInput("appreciationRate", parseFloat(e.target.value) || 0)}
-                  min={0} max={20} step={0.5}
+                  value={inputs.loanAmount}
+                  onChange={(e) => updateInput("loanAmount", parseFloat(e.target.value) || 0)}
+                  min={0}
+                  step={50000}
                   className="apple-input w-full"
                 />
-              </div>
-
-              <div>
-                <FieldLabel tip="Annual rental income as percentage of ORIGINAL property price (fixed, no inflation)">
-                  Gross Rental Yield (%)
-                </FieldLabel>
-                <input
-                  type="number"
-                  value={inputs.rentalYield}
-                  onChange={(e) => updateInput("rentalYield", parseFloat(e.target.value) || 0)}
-                  min={0} max={20} step={0.5}
-                  className="apple-input w-full"
-                />
+                {cashback > 0 && (
+                  <p className="text-[12px] text-[#34c759] mt-1.5 font-medium">
+                    Cashback: RM {cashback.toLocaleString("en-MY")} per property (Loan &gt; Purchase Price)
+                  </p>
+                )}
+                {inputs.loanAmount > 0 && (
+                  <p className="text-[12px] text-[#86868b] mt-1">
+                    LTV: {((inputs.loanAmount / inputs.currentMarketValue) * 100).toFixed(0)}% of market value
+                  </p>
+                )}
               </div>
 
               <div>
@@ -205,10 +198,34 @@ const InputPanel = forwardRef<InputPanelRef, InputPanelProps>(
                 />
               </div>
 
-              {/* Annual Expense */}
+              <div>
+                <FieldLabel tip="Average annual increase in property value">Annual Capital Appreciation (%)</FieldLabel>
+                <input
+                  type="number"
+                  value={inputs.appreciationRate}
+                  onChange={(e) => updateInput("appreciationRate", parseFloat(e.target.value) || 0)}
+                  min={0} max={20} step={0.5}
+                  className="apple-input w-full"
+                />
+              </div>
+
+              <div>
+                <FieldLabel tip="Annual rental income as percentage of ORIGINAL purchase price (fixed, no inflation)">
+                  Gross Rental Yield (%)
+                </FieldLabel>
+                <input
+                  type="number"
+                  value={inputs.rentalYield}
+                  onChange={(e) => updateInput("rentalYield", parseFloat(e.target.value) || 0)}
+                  min={0} max={20} step={0.5}
+                  className="apple-input w-full"
+                />
+              </div>
+
+              {/* Monthly Expense */}
               <div className="pt-2 border-t border-[#f5f5f7]">
-                <FieldLabel tip="Annual expenses per property: maintenance, tax, insurance, management fees. Set to 0 to exclude.">
-                  Annual Expense / Property
+                <FieldLabel tip="Monthly expenses per property: maintenance, tax, insurance, management fees. % mode is based on monthly instalment amount.">
+                  Monthly Expense / Property
                 </FieldLabel>
                 {/* Type toggle */}
                 <div className="flex rounded-[8px] bg-[#f5f5f7] p-0.5 mb-3">
@@ -236,7 +253,7 @@ const InputPanel = forwardRef<InputPanelRef, InputPanelProps>(
                       }
                     `}
                   >
-                    % of Price
+                    % of Instalment
                   </button>
                 </div>
                 <input
@@ -244,17 +261,15 @@ const InputPanel = forwardRef<InputPanelRef, InputPanelProps>(
                   value={inputs.expenseValue}
                   onChange={(e) => updateInput("expenseValue", parseFloat(e.target.value) || 0)}
                   min={0}
-                  max={inputs.expenseType === "percentage" ? 20 : 100000}
-                  step={inputs.expenseType === "percentage" ? 0.5 : 1000}
-                  placeholder={inputs.expenseType === "fixed" ? "e.g. 5000" : "e.g. 2"}
+                  max={inputs.expenseType === "percentage" ? 50 : 10000}
+                  step={inputs.expenseType === "percentage" ? 1 : 100}
+                  placeholder={inputs.expenseType === "fixed" ? "e.g. 500" : "e.g. 10"}
                   className="apple-input w-full"
                 />
                 {inputs.expenseValue > 0 && (
                   <p className="text-[12px] text-[#86868b] mt-1.5">
-                    = RM {(inputs.expenseType === "fixed"
-                      ? inputs.expenseValue
-                      : inputs.purchasePrice * (inputs.expenseValue / 100)
-                    ).toLocaleString("en-MY", { maximumFractionDigits: 0 })}/year per property
+                    = RM {monthlyExpense.toLocaleString("en-MY", { maximumFractionDigits: 0 })}/month
+                    {" "}(RM {(monthlyExpense * 12).toLocaleString("en-MY", { maximumFractionDigits: 0 })}/year) per property
                   </p>
                 )}
               </div>
@@ -267,6 +282,17 @@ const InputPanel = forwardRef<InputPanelRef, InputPanelProps>(
               Purchase Plan
             </h3>
             <div className="space-y-5">
+              <div>
+                <FieldLabel tip="Maximum number of properties you plan to acquire">Maximum Properties</FieldLabel>
+                <input
+                  type="number"
+                  value={inputs.maxProperties}
+                  onChange={(e) => updateInput("maxProperties", parseInt(e.target.value) || 1)}
+                  min={1} max={50} step={1}
+                  className="apple-input w-full"
+                />
+              </div>
+
               <div>
                 <FieldLabel tip="How often you buy a new property (1 = every year)">Purchase Interval (Years)</FieldLabel>
                 <input
@@ -289,16 +315,39 @@ const InputPanel = forwardRef<InputPanelRef, InputPanelProps>(
                 />
               </div>
 
-              <div>
-                <FieldLabel>Loan Tenure (Years)</FieldLabel>
+              {/* Age-based tenure */}
+              <div className="pt-2 border-t border-[#f5f5f7]">
+                <FieldLabel tip="Loan tenure is auto-calculated: min(70 - your age, 35 years), minimum 5 years">
+                  Your Current Age
+                </FieldLabel>
                 <input
                   type="number"
-                  value={inputs.loanTenure}
-                  onChange={(e) => updateInput("loanTenure", parseInt(e.target.value) || 30)}
-                  min={10} max={35} step={5}
+                  value={inputs.age}
+                  onChange={(e) => updateInput("age", parseInt(e.target.value) || 25)}
+                  min={18} max={65} step={1}
                   className="apple-input w-full"
                 />
+                <div className="mt-2 bg-[#f5f5f7] rounded-[8px] px-3 py-2">
+                  <p className="text-[12px] text-[#86868b]">
+                    Loan Tenure: <span className="font-semibold text-[#1d1d1f]">{loanTenure} years</span>
+                  </p>
+                  <p className="text-[11px] text-[#86868b] mt-0.5">
+                    Formula: min(70 − {inputs.age}, 35) = {loanTenure}
+                  </p>
+                </div>
               </div>
+
+              {/* Monthly instalment preview */}
+              {inputs.loanAmount > 0 && (
+                <div className="bg-[#f0f5ff] rounded-[8px] px-3 py-2">
+                  <p className="text-[12px] text-[#86868b]">
+                    Est. Monthly Instalment:
+                  </p>
+                  <p className="text-[15px] font-semibold text-[#0071e3]">
+                    RM {estimatedMonthlyPayment.toLocaleString("en-MY", { maximumFractionDigits: 0 })}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>

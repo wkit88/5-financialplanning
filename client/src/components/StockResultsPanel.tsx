@@ -33,6 +33,7 @@ interface StockResultsPanelProps {
   propertyResults: FullSimulationResult;
   stockInputs: StockInputs;
   purchasePrice: number;
+  loanAmount: number;
 }
 
 type TabKey = "combined" | "stockGrowth" | "dividends" | "summary" | "assumptions" | "calculations";
@@ -46,7 +47,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "calculations", label: "Calculations" },
 ];
 
-export default function StockResultsPanel({ stockResults, propertyResults, stockInputs, purchasePrice }: StockResultsPanelProps) {
+export default function StockResultsPanel({ stockResults, propertyResults, stockInputs, purchasePrice, loanAmount }: StockResultsPanelProps) {
   const resultsRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("combined");
 
@@ -342,7 +343,7 @@ export default function StockResultsPanel({ stockResults, propertyResults, stock
               <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span>Dividends are {stockInputs.reinvestDividends ? <strong>reinvested (DRIP active) — last year’s dividend is used to buy more shares this year at the discounted price</strong> : <strong>taken as cash (DRIP off) — dividends are not reinvested</strong>}</li>
               <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span><strong>Property Cash Flow</strong> column shows the positive annual cash flow from your property portfolio that is reinvested into stocks each year</li>
               <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span><strong>Dividend Reinvested</strong> column shows last year’s dividend income that is reinvested this year to buy more shares (only when DRIP is active)</li>
-              <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span>Cashback per property: <strong>RM {formatNumber(Math.round(stockResults.totalCashbackPerProperty))}</strong> (Mortgage RM {formatNumber(Math.round(stockInputs.mortgageApprovedAmount))} − Purchase Price RM {formatNumber(Math.round(purchasePrice))})</li>
+              <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span>Cashback per property: <strong>RM {formatNumber(Math.round(stockResults.totalCashbackPerProperty))}</strong> (Loan Amount RM {formatNumber(Math.round(loanAmount))} − Purchase Price RM {formatNumber(Math.round(purchasePrice))})</li>
               <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span>Only <strong>positive</strong> annual cash flow from properties is reinvested (negative cash flow is not covered)</li>
               <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span>All stock purchases (from cash flow, cashback, and DRIP) are made at the discounted price</li>
               <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span>No stock sales during the investment period — buy and hold strategy</li>
@@ -358,7 +359,7 @@ export default function StockResultsPanel({ stockResults, propertyResults, stock
               <div>
                 <p className="font-semibold text-[#1d1d1f] mb-1">1. Cashback Calculation</p>
                 <p>Cashback = Mortgage Approved Amount − Property Purchase Price. If the bank approves a mortgage higher than the purchase price, the difference is your cashback. Each new property generates a cashback lump sum that is immediately invested into stocks.</p>
-                <p className="mt-1 text-[13px] text-[#86868b]">Example: Mortgage RM {formatNumber(Math.round(stockInputs.mortgageApprovedAmount))} − Price RM {formatNumber(Math.round(purchasePrice))} = <span className="text-[#34c759] font-medium">RM {formatNumber(Math.round(stockResults.totalCashbackPerProperty))}</span> cashback per property</p>
+                <p className="mt-1 text-[13px] text-[#86868b]">Example: Loan Amount RM {formatNumber(Math.round(loanAmount))} − Price RM {formatNumber(Math.round(purchasePrice))} = <span className="text-[#34c759] font-medium">RM {formatNumber(Math.round(stockResults.totalCashbackPerProperty))}</span> cashback per property</p>
               </div>
               <div>
                 <p className="font-semibold text-[#1d1d1f] mb-1">2. Buy Price (Below Market Value)</p>

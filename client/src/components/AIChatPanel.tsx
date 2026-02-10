@@ -16,7 +16,7 @@ import {
 } from "react";
 import { trpc } from "@/lib/trpc";
 import type { FullSimulationResult, CalculatorInputs } from "@/lib/calculator";
-import { formatNumber } from "@/lib/calculator";
+import { formatNumber, calculateTenure } from "@/lib/calculator";
 import { Sparkles, Send, RotateCcw, Target } from "lucide-react";
 import { Streamdown } from "streamdown";
 
@@ -42,25 +42,35 @@ function buildContextMessage(
   inputs: CalculatorInputs,
   results: FullSimulationResult
 ): string {
-  const expensePerProperty =
-    inputs.expenseType === "fixed"
-      ? inputs.expenseValue
-      : inputs.purchasePrice * (inputs.expenseValue / 100);
+  const loanTenure = calculateTenure(inputs.age);
+  const monthlyRate = (inputs.interestRate / 100) / 12;
+  const numPayments = loanTenure * 12;
+  const monthlyInstalment = monthlyRate === 0
+    ? inputs.loanAmount / numPayments
+    : (inputs.loanAmount * monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1);
+  const monthlyExpense = inputs.expenseType === "fixed"
+    ? inputs.expenseValue
+    : monthlyInstalment * (inputs.expenseValue / 100);
+  const cashback = Math.max(0, inputs.loanAmount - inputs.purchasePrice);
+  const belowMV = inputs.currentMarketValue > inputs.purchasePrice;
+  const discountPct = belowMV ? ((1 - inputs.purchasePrice / inputs.currentMarketValue) * 100).toFixed(1) : "0";
 
   return `Here is my current property investment simulation:
 
 **Input Parameters:**
 - Purchase Price: RM ${formatNumber(inputs.purchasePrice)}
-- Loan Type: ${inputs.loanType === 1 ? "100% (Full Financing)" : "90%"}
+- Current Market Value: RM ${formatNumber(inputs.currentMarketValue)}
+- Below Market Value: ${belowMV ? `Yes (${discountPct}% discount)` : "No"}
+- Loan Amount: RM ${formatNumber(inputs.loanAmount)} (LTV: ${((inputs.loanAmount / inputs.currentMarketValue) * 100).toFixed(0)}%)
+- Cashback per Property: RM ${formatNumber(cashback)}
 - Max Properties: ${inputs.maxProperties}
-- Below Market Value: ${inputs.belowMarketValue ? `Yes (${inputs.discountPercentage}% discount)` : "No"}
 - Annual Appreciation: ${inputs.appreciationRate}%
 - Gross Rental Yield: ${inputs.rentalYield}%
 - Loan Interest Rate: ${inputs.interestRate}%
 - Purchase Interval: Every ${inputs.buyInterval} year(s)
 - Starting Year: ${inputs.startingYear}
-- Loan Tenure: ${inputs.loanTenure} years
-- Annual Expense/Property: RM ${formatNumber(expensePerProperty.toFixed(0))} (${inputs.expenseType === "fixed" ? "fixed" : `${inputs.expenseValue}% of price`})
+- Age: ${inputs.age} → Loan Tenure: ${loanTenure} years
+- Monthly Expense/Property: RM ${formatNumber(monthlyExpense.toFixed(0))} (${inputs.expenseType === "fixed" ? "fixed" : `${inputs.expenseValue}% of instalment`})
 
 **Key Results:**
 - 10-Year Net Equity: RM ${formatNumber(results.results10.netEquity.toFixed(0))}

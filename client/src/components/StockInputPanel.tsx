@@ -1,7 +1,7 @@
 /**
  * Stock Reinvestment Input Panel.
- * Allows users to configure stock assumptions and mortgage cashback.
- * Cashback = Mortgage Approved Amount - Purchase Price (if positive).
+ * Allows users to configure stock assumptions.
+ * Cashback is auto-calculated from property inputs: loanAmount - purchasePrice (if positive).
  */
 
 import { useState, useCallback, useEffect } from "react";
@@ -18,6 +18,7 @@ import { Info, TrendingUp, DollarSign, ArrowRight } from "lucide-react";
 
 interface StockInputPanelProps {
   purchasePrice: number;
+  loanAmount: number;
   onCalculate: (inputs: StockInputs) => void;
   externalInputs?: StockInputs | null;
 }
@@ -44,10 +45,9 @@ const DEFAULT_STOCK_INPUTS: StockInputs = {
   stockDiscount: 20,
   stockAppreciation: 5,
   reinvestDividends: true,
-  mortgageApprovedAmount: 600000,
 };
 
-export default function StockInputPanel({ purchasePrice, onCalculate, externalInputs }: StockInputPanelProps) {
+export default function StockInputPanel({ purchasePrice, loanAmount, onCalculate, externalInputs }: StockInputPanelProps) {
   const [inputs, setInputs] = useState<StockInputs>(DEFAULT_STOCK_INPUTS);
 
   useEffect(() => {
@@ -67,7 +67,7 @@ export default function StockInputPanel({ purchasePrice, onCalculate, externalIn
     onCalculate(inputs);
   }, [inputs, onCalculate]);
 
-  const cashback = Math.max(0, inputs.mortgageApprovedAmount - purchasePrice);
+  const cashback = Math.max(0, loanAmount - purchasePrice);
 
   return (
     <div className="space-y-6">
@@ -86,62 +86,41 @@ export default function StockInputPanel({ purchasePrice, onCalculate, externalIn
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {/* Mortgage Cashback Card */}
-        <div className="apple-card p-6 md:p-7">
-          <h3 className="text-[17px] font-semibold text-[#1d1d1f] mb-5 tracking-tight">
-            Mortgage Cashback
-          </h3>
-          <div className="space-y-5">
-            <div>
-              <FieldLabel tip="The total mortgage amount approved by the bank. If this exceeds the property purchase price, the difference is your cashback.">
-                Mortgage Approved (RM)
-              </FieldLabel>
-              <input
-                type="number"
-                value={inputs.mortgageApprovedAmount}
-                onChange={(e) => updateInput("mortgageApprovedAmount", parseFloat(e.target.value) || 0)}
-                min={0}
-                step={10000}
-                className="apple-input w-full"
-              />
-            </div>
-
-            {/* Cashback calculation display */}
-            <div className={`
-              rounded-[10px] p-4 border
-              ${cashback > 0
-                ? "bg-[#34c759]/5 border-[#34c759]/20"
-                : "bg-[#f5f5f7] border-[#e5e5ea]"
-              }
-            `}>
-              <div className="flex items-center gap-2 text-[12px] text-[#86868b] mb-2">
-                <DollarSign className="w-3.5 h-3.5" />
-                Cashback Calculation
-              </div>
-              <div className="flex items-center gap-2 text-[13px]">
-                <span className="text-[#1d1d1f]">RM {formatNumber(Math.round(inputs.mortgageApprovedAmount))}</span>
-                <span className="text-[#86868b]">−</span>
-                <span className="text-[#1d1d1f]">RM {formatNumber(Math.round(purchasePrice))}</span>
-                <ArrowRight className="w-3.5 h-3.5 text-[#86868b]" />
-                <span className={`font-semibold ${cashback > 0 ? "text-[#34c759]" : "text-[#86868b]"}`}>
-                  RM {formatNumber(Math.round(cashback))}
-                </span>
-              </div>
-              {cashback > 0 && (
-                <p className="text-[11px] text-[#34c759] mt-1.5">
-                  Per property cashback reinvested into stocks
-                </p>
-              )}
-              {cashback === 0 && (
-                <p className="text-[11px] text-[#86868b] mt-1.5">
-                  No cashback — mortgage ≤ purchase price
-                </p>
-              )}
-            </div>
+      {/* Cashback Info Banner */}
+      <div className={`
+        rounded-[12px] p-4 border flex items-center gap-4
+        ${cashback > 0
+          ? "bg-[#34c759]/5 border-[#34c759]/20"
+          : "bg-[#f5f5f7] border-[#e5e5ea]"
+        }
+      `}>
+        <DollarSign className={`w-5 h-5 shrink-0 ${cashback > 0 ? "text-[#34c759]" : "text-[#86868b]"}`} />
+        <div className="flex-1">
+          <div className="flex items-center gap-2 text-[13px] flex-wrap">
+            <span className="text-[#86868b]">Mortgage Cashback:</span>
+            <span className="text-[#1d1d1f]">RM {formatNumber(Math.round(loanAmount))}</span>
+            <span className="text-[#86868b]">−</span>
+            <span className="text-[#1d1d1f]">RM {formatNumber(Math.round(purchasePrice))}</span>
+            <ArrowRight className="w-3.5 h-3.5 text-[#86868b]" />
+            <span className={`font-semibold ${cashback > 0 ? "text-[#34c759]" : "text-[#86868b]"}`}>
+              RM {formatNumber(Math.round(cashback))}
+            </span>
+            <span className="text-[#86868b]">per property</span>
           </div>
+          {cashback > 0 && (
+            <p className="text-[11px] text-[#34c759] mt-1">
+              Cashback from each property is reinvested into stocks at time of purchase
+            </p>
+          )}
+          {cashback === 0 && (
+            <p className="text-[11px] text-[#86868b] mt-1">
+              No cashback — loan amount ≤ purchase price. Only positive cash flow will be reinvested.
+            </p>
+          )}
         </div>
+      </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Stock Assumptions Card */}
         <div className="apple-card p-6 md:p-7">
           <h3 className="text-[17px] font-semibold text-[#1d1d1f] mb-5 tracking-tight">

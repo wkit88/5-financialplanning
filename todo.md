@@ -35,3 +35,11 @@
 - [x] Update stock Assumptions & Calculations tabs to reflect new columns
 - [x] Add Property Net Equity column to stock table for transparent Combined Net Worth calculation
 - [x] Add tooltip (?) icons on column headers showing formulas on hover
+- [x] Move "Maximum Properties" to Purchase Plan section
+- [x] Replace "Below Market Value" toggle + discount % with direct "Current Market Value" input
+- [x] Replace "Loan Type" dropdown with direct "Loan Amount (RM)" input in Financial Assumptions
+- [x] Change "Annual Expense / Property" to "Monthly Expense / Property" — % based on instalment amount
+- [x] Auto-calculate Loan Tenure from age: min(70 - age, 35) — ask for user's age
+- [x] Add explanation note: tool assumes same price, market value, and financial assumptions for all properties
+- [x] Update calculator types and logic for new inputs
+- [x] Update ResultsPanel, CompareScenarios, SavedScenarios for new field names

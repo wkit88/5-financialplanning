@@ -1,23 +1,27 @@
 // ============================================================
 // PropertyLab - Net Equity Calculator Engine
 // All formulas preserved from the original HTML version
-// + Annual expense per property (fixed RM or % of purchase price)
+// + Monthly expense per property (fixed RM or % of instalment)
 // ============================================================
 
 export interface CalculatorInputs {
   purchasePrice: number;
-  loanType: number; // 0.9 or 1.0
+  currentMarketValue: number; // user-entered market value
+  loanAmount: number; // user-entered loan amount
   maxProperties: number;
-  belowMarketValue: boolean;
-  discountPercentage: number; // e.g., 10 for 10%
   appreciationRate: number; // e.g., 3 for 3%
   rentalYield: number; // e.g., 8 for 8%
   interestRate: number; // e.g., 4 for 4%
   buyInterval: number; // years between purchases
   startingYear: number;
-  loanTenure: number; // years
-  expenseType: "fixed" | "percentage"; // fixed RM or % of purchase price
-  expenseValue: number; // RM amount or percentage (e.g., 2 for 2%)
+  age: number; // user's current age — tenure = min(70 - age, 35)
+  expenseType: "fixed" | "percentage"; // fixed RM or % of monthly instalment
+  expenseValue: number; // RM amount (monthly) or percentage (e.g., 10 for 10% of instalment)
+}
+
+/** Derive loan tenure from age: min(70 - age, 35), minimum 5 */
+export function calculateTenure(age: number): number {
+  return Math.max(5, Math.min(70 - age, 35));
 }
 
 export interface YearlyData {
@@ -52,6 +56,8 @@ export interface FullSimulationResult {
   marketValue: number;
   annualRentalIncome: number;
   annualExpensePerProperty: number;
+  loanTenure: number;
+  monthlyExpensePerProperty: number;
 }
 
 /**
@@ -122,7 +128,6 @@ function simulatePortfolio(
   interestRate: number,
   buyInterval: number,
   maxProperties: number,
-  _belowMarketValue: boolean,
   loanTenure: number,
   annualExpensePerProperty: number
 ): SimulationResult {
@@ -195,7 +200,6 @@ function generateYearlyData(
   buyInterval: number,
   maxProperties: number,
   startingYear: number,
-  _belowMarketValue: boolean,
   loanTenure: number,
   annualExpensePerProperty: number
 ): YearlyData[] {
@@ -280,16 +284,15 @@ export function calculatePropertyPlan(
 ): FullSimulationResult {
   const {
     purchasePrice,
-    loanType,
+    currentMarketValue,
+    loanAmount: userLoanAmount,
     maxProperties,
-    belowMarketValue,
-    discountPercentage,
     appreciationRate: appreciationPct,
     rentalYield: rentalYieldPct,
     interestRate: interestPct,
     buyInterval,
     startingYear,
-    loanTenure,
+    age,
     expenseType,
     expenseValue,
   } = inputs;
@@ -297,15 +300,15 @@ export function calculatePropertyPlan(
   const appreciationRate = appreciationPct / 100;
   const rentalYield = rentalYieldPct / 100;
   const interestRate = interestPct / 100;
-  const discountRate = belowMarketValue ? discountPercentage / 100 : 0;
 
-  // Calculate market value from purchase price
-  const marketValue = belowMarketValue
-    ? purchasePrice / (1 - discountRate)
-    : purchasePrice;
+  // Market value is directly from user input
+  const marketValue = currentMarketValue;
 
-  // Calculate loan amount based on purchase price
-  const loanAmount = purchasePrice * loanType;
+  // Loan amount is directly from user input
+  const loanAmount = userLoanAmount;
+
+  // Loan tenure derived from age
+  const loanTenure = calculateTenure(age);
 
   // Calculate monthly mortgage payment
   const monthlyPayment = calculateMonthlyPayment(
@@ -314,37 +317,40 @@ export function calculatePropertyPlan(
     loanTenure
   );
 
-  // Calculate FIXED annual rental income (based on original property price)
+  // Calculate FIXED annual rental income (based on purchase price)
   const annualRentalIncome = purchasePrice * rentalYield;
 
-  // Calculate annual expense per property
-  const annualExpensePerProperty =
+  // Calculate monthly expense per property
+  const monthlyExpensePerProperty =
     expenseType === "fixed"
       ? expenseValue
-      : purchasePrice * (expenseValue / 100);
+      : monthlyPayment * (expenseValue / 100);
+
+  // Annual expense = monthly * 12
+  const annualExpensePerProperty = monthlyExpensePerProperty * 12;
 
   // Calculate net equity for 10, 20, and 30 years
   const results10 = simulatePortfolio(
     10, purchasePrice, marketValue, loanAmount, monthlyPayment,
     appreciationRate, annualRentalIncome, interestRate, buyInterval,
-    maxProperties, belowMarketValue, loanTenure, annualExpensePerProperty
+    maxProperties, loanTenure, annualExpensePerProperty
   );
   const results20 = simulatePortfolio(
     20, purchasePrice, marketValue, loanAmount, monthlyPayment,
     appreciationRate, annualRentalIncome, interestRate, buyInterval,
-    maxProperties, belowMarketValue, loanTenure, annualExpensePerProperty
+    maxProperties, loanTenure, annualExpensePerProperty
   );
   const results30 = simulatePortfolio(
     30, purchasePrice, marketValue, loanAmount, monthlyPayment,
     appreciationRate, annualRentalIncome, interestRate, buyInterval,
-    maxProperties, belowMarketValue, loanTenure, annualExpensePerProperty
+    maxProperties, loanTenure, annualExpensePerProperty
   );
 
   // Generate year-by-year data for charts and tables
   const yearlyData = generateYearlyData(
     30, purchasePrice, marketValue, loanAmount, monthlyPayment,
     appreciationRate, annualRentalIncome, interestRate, buyInterval,
-    maxProperties, startingYear, belowMarketValue, loanTenure,
+    maxProperties, startingYear, loanTenure,
     annualExpensePerProperty
   );
 
@@ -358,6 +364,8 @@ export function calculatePropertyPlan(
     marketValue,
     annualRentalIncome,
     annualExpensePerProperty,
+    loanTenure,
+    monthlyExpensePerProperty,
   };
 }
 
@@ -372,9 +380,7 @@ export interface StockInputs {
   stockDiscount: number; // e.g., 20 for 20% below market value
   stockAppreciation: number; // e.g., 5 for 5% annual growth
   reinvestDividends: boolean; // DRIP — reinvest dividends or take as cash
-  // Cashback calculation
-  mortgageApprovedAmount: number; // Bank-approved mortgage amount
-  // mortgageApprovedAmount > purchasePrice → cashback = difference
+  // Cashback is now auto-calculated: loanAmount - purchasePrice (if positive)
 }
 
 export interface StockYearlyData {
@@ -411,7 +417,7 @@ export interface StockSimulationResult {
 /**
  * Calculate stock reinvestment portfolio.
  * Two sources of investment:
- * 1. Cashback = mortgageApprovedAmount - purchasePrice (per property, if positive)
+ * 1. Cashback = loanAmount - purchasePrice (per property, if positive)
  *    Invested as lump sum when each property is purchased
  * 2. Positive annual cash flow from property portfolio reinvested into stocks
  *
@@ -429,15 +435,14 @@ export function calculateStockReinvestment(
     stockDiscount: discountPct,
     stockAppreciation: appreciationPct,
     reinvestDividends,
-    mortgageApprovedAmount,
   } = stockInputs;
 
   const divYield = divYieldPct / 100;
   const discount = discountPct / 100;
   const appreciation = appreciationPct / 100;
 
-  // Cashback per property = mortgage approved - purchase price (only if positive)
-  const cashbackPerProperty = Math.max(0, mortgageApprovedAmount - propertyInputs.purchasePrice);
+  // Cashback per property = loanAmount - purchasePrice (only if positive)
+  const cashbackPerProperty = Math.max(0, propertyInputs.loanAmount - propertyInputs.purchasePrice);
 
   const years = 30;
   const yearlyData: StockYearlyData[] = [];
@@ -447,7 +452,6 @@ export function calculateStockReinvestment(
   let cumulativeDividends = 0;
   let cumulativeCashFlowInvested = 0;
   let currentStockPrice = 1; // normalized starting price
-  const buyPrice = currentStockPrice * (1 - discount); // buy at discount
 
   // Track how many properties have been purchased so far
   // to know when new cashback lump sums come in
