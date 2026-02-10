@@ -337,7 +337,9 @@ export default function StockResultsPanel({ stockResults, propertyResults, stock
               <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span>In Year 1, stock price has <strong>no capital appreciation</strong> — you only benefit from the buy discount</li>
               <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span>Stock price appreciation of <strong>{stockInputs.stockAppreciation}% per year</strong> begins from Year 2 onwards, compounded annually</li>
               <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span>Annual dividend yield is <strong>{stockInputs.stockDividendYield}%</strong> based on end-of-previous-year portfolio value</li>
-              <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span>Dividends are {stockInputs.reinvestDividends ? <strong>reinvested (DRIP active)</strong> : <strong>taken as cash (DRIP off)</strong>}</li>
+              <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span>Dividends are {stockInputs.reinvestDividends ? <strong>reinvested (DRIP active) — last year’s dividend is used to buy more shares this year at the discounted price</strong> : <strong>taken as cash (DRIP off) — dividends are not reinvested</strong>}</li>
+              <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span><strong>Property Cash Flow</strong> column shows the positive annual cash flow from your property portfolio that is reinvested into stocks each year</li>
+              <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span><strong>Dividend Reinvested</strong> column shows last year’s dividend income that is reinvested this year to buy more shares (only when DRIP is active)</li>
               <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span>Cashback per property: <strong>RM {formatNumber(Math.round(stockResults.totalCashbackPerProperty))}</strong> (Mortgage RM {formatNumber(Math.round(stockInputs.mortgageApprovedAmount))} − Purchase Price RM {formatNumber(Math.round(purchasePrice))})</li>
               <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span>Only <strong>positive</strong> annual cash flow from properties is reinvested (negative cash flow is not covered)</li>
               <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span>All stock purchases (from cash flow, cashback, and DRIP) are made at the discounted price</li>
@@ -375,8 +377,9 @@ export default function StockResultsPanel({ stockResults, propertyResults, stock
                 <p>Portfolio Value = Total Shares Owned × Current Stock Price. As the stock price appreciates and you accumulate more shares, the portfolio compounds.</p>
               </div>
               <div>
-                <p className="font-semibold text-[#1d1d1f] mb-1">6. Dividend Income</p>
-                <p>Annual Dividend = Previous Year’s Portfolio Value × {stockInputs.stockDividendYield}%. {stockInputs.reinvestDividends ? "Dividends are reinvested (DRIP) to buy more shares at the discounted price, creating a compounding effect." : "Dividends are taken as cash income and not reinvested."}</p>
+                <p className="font-semibold text-[#1d1d1f] mb-1">6. Dividend Income & Reinvestment (DRIP)</p>
+                <p>Annual Dividend = Previous Year’s Portfolio Value × {stockInputs.stockDividendYield}%. {stockInputs.reinvestDividends ? "Dividends are reinvested (DRIP) — last year’s dividend income is used this year to buy more shares at the discounted price, creating a compounding effect. The \"Dividend Reinvested\" column in the table shows exactly how much was reinvested each year." : "Dividends are taken as cash income and not reinvested."}</p>
+                <p className="mt-1 text-[13px] text-[#86868b]">The \"Property Cash Flow\" column shows positive cash flow from your property investment that is reinvested into stocks. The \"Dividend Reinvested\" column shows last year’s dividend used to buy more shares this year.</p>
               </div>
               <div>
                 <p className="font-semibold text-[#1d1d1f] mb-1">7. Unrealized Gain</p>
@@ -396,8 +399,9 @@ export default function StockResultsPanel({ stockResults, propertyResults, stock
               <thead className="sticky top-0 bg-white z-10">
                 <tr className="border-b border-[#e5e5ea]">
                   <th className="text-left py-2.5 px-3 text-[#86868b] font-medium">Year</th>
-                  <th className="text-right py-2.5 px-3 text-[#86868b] font-medium">Cash Flow Invested</th>
+                  <th className="text-right py-2.5 px-3 text-[#86868b] font-medium">Property Cash Flow</th>
                   <th className="text-right py-2.5 px-3 text-[#86868b] font-medium">Cashback</th>
+                  <th className="text-right py-2.5 px-3 text-[#86868b] font-medium">Dividend Reinvested</th>
                   <th className="text-right py-2.5 px-3 text-[#86868b] font-medium">Stock Value</th>
                   <th className="text-right py-2.5 px-3 text-[#86868b] font-medium">Unrealized Gain</th>
                   <th className="text-right py-2.5 px-3 text-[#86868b] font-medium">Annual Dividend</th>
@@ -418,6 +422,9 @@ export default function StockResultsPanel({ stockResults, propertyResults, stock
                     </td>
                     <td className="py-2.5 px-3 text-right text-[#ff9500]">
                       {row.cashbackAmount > 0 ? `RM ${formatNumber(Math.round(row.cashbackAmount))}` : "—"}
+                    </td>
+                    <td className="py-2.5 px-3 text-right text-[#5856d6]">
+                      {row.dividendReinvested > 0 ? `RM ${formatNumber(Math.round(row.dividendReinvested))}` : "—"}
                     </td>
                     <td className="py-2.5 px-3 text-right text-[#34c759] font-medium">
                       RM {formatNumber(Math.round(row.stockPortfolioValue))}

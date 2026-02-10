@@ -30,3 +30,6 @@
 - [x] Integrate stock section into Home page after property results
 - [x] Fix stock appreciation timing — Year 1 no growth (only discount), appreciation starts Year 2
 - [x] Add Assumptions & Calculations explanation tabs to Stock Results panel
+- [x] Rename "Cash Flow Invested" to "Property Cash Flow" in stock table
+- [x] Add "Dividend Reinvested" column showing last year's dividend reinvested this year
+- [x] Update stock Assumptions & Calculations tabs to reflect new columns

@@ -381,10 +381,12 @@ export interface StockYearlyData {
   year: number;
   calendarYear: number;
   // Cash flow reinvestment
-  cashFlowInvested: number; // positive cash flow reinvested this year
+  cashFlowInvested: number; // positive cash flow from property reinvested this year
   cumulativeCashFlowInvested: number;
   // Cashback lump sum
-  cashbackAmount: number; // only in year 0
+  cashbackAmount: number; // cashback from new property purchases this year
+  // Dividend reinvestment
+  dividendReinvested: number; // last year's dividend reinvested this year (DRIP)
   // Stock portfolio
   stockPortfolioValue: number;
   stockCostBasis: number; // total amount invested
@@ -461,6 +463,7 @@ export function calculateStockReinvestment(
 
     let cashFlowInvestedThisYear = 0;
     let cashbackThisYear = 0;
+    let dividendReinvestedThisYear = 0;
 
     if (year > 0) {
       // 1. Cashback from newly purchased properties this year
@@ -485,12 +488,13 @@ export function calculateStockReinvestment(
         cumulativeCashFlowInvested += cashFlowInvestedThisYear;
       }
 
-      // 3. Dividends
+      // 3. Dividends (based on previous year's portfolio value)
       const annualDividend = stockPortfolioValue * divYield;
       cumulativeDividends += annualDividend;
 
       if (reinvestDividends && annualDividend > 0) {
-        // DRIP — reinvest dividends at current discounted price
+        // DRIP — reinvest last year's dividends at current discounted price
+        dividendReinvestedThisYear = annualDividend;
         const currentBuyPrice = currentStockPrice * (1 - discount);
         const sharesBought = annualDividend / currentBuyPrice;
         totalSharesOwned += sharesBought;
@@ -511,6 +515,7 @@ export function calculateStockReinvestment(
       cashFlowInvested: cashFlowInvestedThisYear,
       cumulativeCashFlowInvested,
       cashbackAmount: cashbackThisYear,
+      dividendReinvested: dividendReinvestedThisYear,
       stockPortfolioValue,
       stockCostBasis,
       stockUnrealizedGain: stockPortfolioValue - stockCostBasis,
