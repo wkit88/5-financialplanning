@@ -33,3 +33,5 @@
 - [x] Rename "Cash Flow Invested" to "Property Cash Flow" in stock table
 - [x] Add "Dividend Reinvested" column showing last year's dividend reinvested this year
 - [x] Update stock Assumptions & Calculations tabs to reflect new columns
+- [x] Add Property Net Equity column to stock table for transparent Combined Net Worth calculation
+- [x] Add tooltip (?) icons on column headers showing formulas on hover

@@ -7,6 +7,8 @@ import { useMemo, useRef, useEffect, useState } from "react";
 import type { StockSimulationResult, FullSimulationResult, StockInputs } from "@/lib/calculator";
 import { formatNumber } from "@/lib/calculator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Info } from "lucide-react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -398,14 +400,63 @@ export default function StockResultsPanel({ stockResults, propertyResults, stock
             <table className="w-full text-[13px]">
               <thead className="sticky top-0 bg-white z-10">
                 <tr className="border-b border-[#e5e5ea]">
-                  <th className="text-left py-2.5 px-3 text-[#86868b] font-medium">Year</th>
-                  <th className="text-right py-2.5 px-3 text-[#86868b] font-medium">Property Cash Flow</th>
-                  <th className="text-right py-2.5 px-3 text-[#86868b] font-medium">Cashback</th>
-                  <th className="text-right py-2.5 px-3 text-[#86868b] font-medium">Dividend Reinvested</th>
-                  <th className="text-right py-2.5 px-3 text-[#86868b] font-medium">Stock Value</th>
-                  <th className="text-right py-2.5 px-3 text-[#86868b] font-medium">Unrealized Gain</th>
-                  <th className="text-right py-2.5 px-3 text-[#86868b] font-medium">Annual Dividend</th>
-                  <th className="text-right py-2.5 px-3 text-[#86868b] font-medium">Combined Net Worth</th>
+                  <th className="text-left py-2.5 px-2 text-[#86868b] font-medium">Year</th>
+                  <th className="text-right py-2.5 px-2 text-[#86868b] font-medium">
+                    <span className="inline-flex items-center gap-1 justify-end">
+                      Property Cash Flow
+                      <Tooltip><TooltipTrigger asChild><Info className="w-3 h-3 text-[#86868b] cursor-help shrink-0" /></TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[240px] text-xs"><p>Positive annual cash flow from your property portfolio (Rental Income − Mortgage − Expenses) reinvested into stocks.</p></TooltipContent></Tooltip>
+                    </span>
+                  </th>
+                  <th className="text-right py-2.5 px-2 text-[#86868b] font-medium">
+                    <span className="inline-flex items-center gap-1 justify-end">
+                      Cashback
+                      <Tooltip><TooltipTrigger asChild><Info className="w-3 h-3 text-[#86868b] cursor-help shrink-0" /></TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[240px] text-xs"><p>Mortgage Approved − Purchase Price. Lump sum invested when each new property is purchased.</p></TooltipContent></Tooltip>
+                    </span>
+                  </th>
+                  <th className="text-right py-2.5 px-2 text-[#86868b] font-medium">
+                    <span className="inline-flex items-center gap-1 justify-end">
+                      Div. Reinvested
+                      <Tooltip><TooltipTrigger asChild><Info className="w-3 h-3 text-[#86868b] cursor-help shrink-0" /></TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[240px] text-xs"><p>Last year’s dividend income reinvested this year to buy more shares at discounted price (DRIP).</p></TooltipContent></Tooltip>
+                    </span>
+                  </th>
+                  <th className="text-right py-2.5 px-2 text-[#86868b] font-medium">
+                    <span className="inline-flex items-center gap-1 justify-end">
+                      Stock Value
+                      <Tooltip><TooltipTrigger asChild><Info className="w-3 h-3 text-[#86868b] cursor-help shrink-0" /></TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[240px] text-xs"><p>Total Shares Owned × Current Stock Price. Includes shares from cash flow, cashback, and DRIP.</p></TooltipContent></Tooltip>
+                    </span>
+                  </th>
+                  <th className="text-right py-2.5 px-2 text-[#86868b] font-medium">
+                    <span className="inline-flex items-center gap-1 justify-end">
+                      Unrealized Gain
+                      <Tooltip><TooltipTrigger asChild><Info className="w-3 h-3 text-[#86868b] cursor-help shrink-0" /></TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[240px] text-xs"><p>Stock Value − Cost Basis. Gain from buying at discount + stock price appreciation.</p></TooltipContent></Tooltip>
+                    </span>
+                  </th>
+                  <th className="text-right py-2.5 px-2 text-[#86868b] font-medium">
+                    <span className="inline-flex items-center gap-1 justify-end">
+                      Annual Div.
+                      <Tooltip><TooltipTrigger asChild><Info className="w-3 h-3 text-[#86868b] cursor-help shrink-0" /></TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[240px] text-xs"><p>This year’s dividend = End-of-year Stock Value × Dividend Yield ({stockInputs.stockDividendYield}%).</p></TooltipContent></Tooltip>
+                    </span>
+                  </th>
+                  <th className="text-right py-2.5 px-2 text-[#86868b] font-medium">
+                    <span className="inline-flex items-center gap-1 justify-end">
+                      Prop. Equity
+                      <Tooltip><TooltipTrigger asChild><Info className="w-3 h-3 text-[#86868b] cursor-help shrink-0" /></TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[240px] text-xs"><p>Property Net Equity = Total Asset Value − Total Loan Balance + Cumulative Cash Flow (from property section).</p></TooltipContent></Tooltip>
+                    </span>
+                  </th>
+                  <th className="text-right py-2.5 px-2 text-[#86868b] font-medium">
+                    <span className="inline-flex items-center gap-1 justify-end">
+                      Combined
+                      <Tooltip><TooltipTrigger asChild><Info className="w-3 h-3 text-[#86868b] cursor-help shrink-0" /></TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[240px] text-xs"><p>Combined Net Worth = Property Net Equity + Stock Portfolio Value. Your total wealth from both investments.</p></TooltipContent></Tooltip>
+                    </span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -416,26 +467,29 @@ export default function StockResultsPanel({ stockResults, propertyResults, stock
                       ${row.year === 10 || row.year === 20 || row.year === 30 ? "bg-[#0071e3]/3 font-medium" : ""}
                     `}
                   >
-                    <td className="py-2.5 px-3 text-[#1d1d1f]">{row.calendarYear}</td>
-                    <td className="py-2.5 px-3 text-right text-[#1d1d1f]">
+                    <td className="py-2.5 px-2 text-[#1d1d1f]">{row.calendarYear}</td>
+                    <td className="py-2.5 px-2 text-right text-[#1d1d1f]">
                       {row.cashFlowInvested > 0 ? `RM ${formatNumber(Math.round(row.cashFlowInvested))}` : "—"}
                     </td>
-                    <td className="py-2.5 px-3 text-right text-[#ff9500]">
+                    <td className="py-2.5 px-2 text-right text-[#ff9500]">
                       {row.cashbackAmount > 0 ? `RM ${formatNumber(Math.round(row.cashbackAmount))}` : "—"}
                     </td>
-                    <td className="py-2.5 px-3 text-right text-[#5856d6]">
+                    <td className="py-2.5 px-2 text-right text-[#5856d6]">
                       {row.dividendReinvested > 0 ? `RM ${formatNumber(Math.round(row.dividendReinvested))}` : "—"}
                     </td>
-                    <td className="py-2.5 px-3 text-right text-[#34c759] font-medium">
+                    <td className="py-2.5 px-2 text-right text-[#34c759] font-medium">
                       RM {formatNumber(Math.round(row.stockPortfolioValue))}
                     </td>
-                    <td className={`py-2.5 px-3 text-right ${row.stockUnrealizedGain >= 0 ? "text-[#34c759]" : "text-[#ff3b30]"}`}>
+                    <td className={`py-2.5 px-2 text-right ${row.stockUnrealizedGain >= 0 ? "text-[#34c759]" : "text-[#ff3b30]"}`}>
                       RM {formatNumber(Math.round(row.stockUnrealizedGain))}
                     </td>
-                    <td className="py-2.5 px-3 text-right text-[#1d1d1f]">
+                    <td className="py-2.5 px-2 text-right text-[#1d1d1f]">
                       {row.annualDividendIncome > 0 ? `RM ${formatNumber(Math.round(row.annualDividendIncome))}` : "—"}
                     </td>
-                    <td className="py-2.5 px-3 text-right text-[#5856d6] font-semibold">
+                    <td className="py-2.5 px-2 text-right text-[#0071e3]">
+                      RM {formatNumber(Math.round(row.propertyNetEquity))}
+                    </td>
+                    <td className="py-2.5 px-2 text-right text-[#5856d6] font-semibold">
                       RM {formatNumber(Math.round(row.combinedNetWorth))}
                     </td>
                   </tr>

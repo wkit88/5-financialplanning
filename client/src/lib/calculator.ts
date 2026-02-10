@@ -393,6 +393,8 @@ export interface StockYearlyData {
   stockUnrealizedGain: number;
   annualDividendIncome: number;
   cumulativeDividends: number;
+  // Property reference
+  propertyNetEquity: number; // property net equity for this year (for transparent combined calc)
   // Combined
   combinedNetWorth: number; // property net equity + stock portfolio
 }
@@ -521,6 +523,7 @@ export function calculateStockReinvestment(
       stockUnrealizedGain: stockPortfolioValue - stockCostBasis,
       annualDividendIncome: year > 0 ? stockPortfolioValue * divYield : 0,
       cumulativeDividends,
+      propertyNetEquity: propYearData.netEquity,
       combinedNetWorth,
     });
   }
