@@ -28,3 +28,5 @@
 - [x] Stock input panel (dividend yield, discount, appreciation, DRIP, mortgage amount for cashback)
 - [x] Stock results panel (portfolio value, dividends, combined net worth chart)
 - [x] Integrate stock section into Home page after property results
+- [x] Fix stock appreciation timing — Year 1 no growth (only discount), appreciation starts Year 2
+- [x] Add Assumptions & Calculations explanation tabs to Stock Results panel

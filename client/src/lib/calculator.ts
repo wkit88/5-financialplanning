@@ -453,8 +453,9 @@ export function calculateStockReinvestment(
     const propYearData = propertyResult.yearlyData[year];
     if (!propYearData) break;
 
-    // Stock price appreciates each year
-    if (year > 0) {
+    // Stock price appreciates starting from Year 2
+    // Year 1: buy at discount only, no capital growth yet
+    if (year > 1) {
       currentStockPrice *= (1 + appreciation);
     }
 

@@ -4,7 +4,7 @@
  */
 
 import { useMemo, useRef, useEffect, useState } from "react";
-import type { StockSimulationResult, FullSimulationResult } from "@/lib/calculator";
+import type { StockSimulationResult, FullSimulationResult, StockInputs } from "@/lib/calculator";
 import { formatNumber } from "@/lib/calculator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -29,18 +29,22 @@ ChartJS.register(
 interface StockResultsPanelProps {
   stockResults: StockSimulationResult;
   propertyResults: FullSimulationResult;
+  stockInputs: StockInputs;
+  purchasePrice: number;
 }
 
-type TabKey = "combined" | "stockGrowth" | "dividends" | "summary";
+type TabKey = "combined" | "stockGrowth" | "dividends" | "summary" | "assumptions" | "calculations";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "combined", label: "Combined Net Worth" },
   { key: "stockGrowth", label: "Stock Portfolio" },
   { key: "dividends", label: "Dividend Income" },
   { key: "summary", label: "Yearly Summary" },
+  { key: "assumptions", label: "Assumptions" },
+  { key: "calculations", label: "Calculations" },
 ];
 
-export default function StockResultsPanel({ stockResults, propertyResults }: StockResultsPanelProps) {
+export default function StockResultsPanel({ stockResults, propertyResults, stockInputs, purchasePrice }: StockResultsPanelProps) {
   const resultsRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("combined");
 
@@ -322,6 +326,67 @@ export default function StockResultsPanel({ stockResults, propertyResults }: Sto
         {activeTab === "dividends" && (
           <div className="h-[360px] md:h-[420px]">
             <Bar data={dividendChartData} options={barOptions} />
+          </div>
+        )}
+
+        {activeTab === "assumptions" && (
+          <div className="bg-[#f5f5f7] rounded-[12px] p-6">
+            <h3 className="text-[15px] font-semibold text-[#1d1d1f] mb-4">Stock Reinvestment Assumptions</h3>
+            <ul className="space-y-2.5 text-[14px] text-[#424245] leading-relaxed">
+              <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span>Stocks are purchased at <strong>{stockInputs.stockDiscount}% below market value</strong> (discount price)</li>
+              <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span>In Year 1, stock price has <strong>no capital appreciation</strong> — you only benefit from the buy discount</li>
+              <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span>Stock price appreciation of <strong>{stockInputs.stockAppreciation}% per year</strong> begins from Year 2 onwards, compounded annually</li>
+              <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span>Annual dividend yield is <strong>{stockInputs.stockDividendYield}%</strong> based on end-of-previous-year portfolio value</li>
+              <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span>Dividends are {stockInputs.reinvestDividends ? <strong>reinvested (DRIP active)</strong> : <strong>taken as cash (DRIP off)</strong>}</li>
+              <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span>Cashback per property: <strong>RM {formatNumber(Math.round(stockResults.totalCashbackPerProperty))}</strong> (Mortgage RM {formatNumber(Math.round(stockInputs.mortgageApprovedAmount))} − Purchase Price RM {formatNumber(Math.round(purchasePrice))})</li>
+              <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span>Only <strong>positive</strong> annual cash flow from properties is reinvested (negative cash flow is not covered)</li>
+              <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span>All stock purchases (from cash flow, cashback, and DRIP) are made at the discounted price</li>
+              <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span>No stock sales during the investment period — buy and hold strategy</li>
+              <li className="flex gap-2.5"><span className="text-[#34c759] shrink-0">•</span>No brokerage fees, taxes, or transaction costs are included</li>
+            </ul>
+          </div>
+        )}
+
+        {activeTab === "calculations" && (
+          <div className="bg-[#f5f5f7] rounded-[12px] p-6">
+            <h3 className="text-[15px] font-semibold text-[#1d1d1f] mb-4">How Stock Calculations Work</h3>
+            <div className="space-y-4 text-[14px] text-[#424245] leading-relaxed">
+              <div>
+                <p className="font-semibold text-[#1d1d1f] mb-1">1. Cashback Calculation</p>
+                <p>Cashback = Mortgage Approved Amount − Property Purchase Price. If the bank approves a mortgage higher than the purchase price, the difference is your cashback. Each new property generates a cashback lump sum that is immediately invested into stocks.</p>
+                <p className="mt-1 text-[13px] text-[#86868b]">Example: Mortgage RM {formatNumber(Math.round(stockInputs.mortgageApprovedAmount))} − Price RM {formatNumber(Math.round(purchasePrice))} = <span className="text-[#34c759] font-medium">RM {formatNumber(Math.round(stockResults.totalCashbackPerProperty))}</span> cashback per property</p>
+              </div>
+              <div>
+                <p className="font-semibold text-[#1d1d1f] mb-1">2. Buy Price (Below Market Value)</p>
+                <p>You buy stocks at a {stockInputs.stockDiscount}% discount. If the stock’s market price is RM 1.00, you pay RM {(1 - stockInputs.stockDiscount / 100).toFixed(2)}. This creates an immediate unrealized gain.</p>
+                <p className="mt-1 text-[13px] text-[#86868b]">Buy Price = Stock Price × (1 − {stockInputs.stockDiscount}%) = Stock Price × {(1 - stockInputs.stockDiscount / 100).toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="font-semibold text-[#1d1d1f] mb-1">3. Shares Purchased</p>
+                <p>Each investment (cashback, cash flow, or DRIP dividend) buys shares at the current discounted price. Shares = Investment Amount ÷ Current Buy Price.</p>
+              </div>
+              <div>
+                <p className="font-semibold text-[#1d1d1f] mb-1">4. Stock Price Appreciation</p>
+                <p>The stock price stays flat in Year 1 (you only benefit from the discount). From Year 2 onwards, the stock price grows at {stockInputs.stockAppreciation}% per year, compounded annually.</p>
+                <p className="mt-1 text-[13px] text-[#86868b]">Year 1 Price = 1.00 (no growth) → Year 2 Price = 1.00 × 1.{String(stockInputs.stockAppreciation).padStart(2, '0')} = {(1 * (1 + stockInputs.stockAppreciation / 100)).toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="font-semibold text-[#1d1d1f] mb-1">5. Portfolio Value</p>
+                <p>Portfolio Value = Total Shares Owned × Current Stock Price. As the stock price appreciates and you accumulate more shares, the portfolio compounds.</p>
+              </div>
+              <div>
+                <p className="font-semibold text-[#1d1d1f] mb-1">6. Dividend Income</p>
+                <p>Annual Dividend = Previous Year’s Portfolio Value × {stockInputs.stockDividendYield}%. {stockInputs.reinvestDividends ? "Dividends are reinvested (DRIP) to buy more shares at the discounted price, creating a compounding effect." : "Dividends are taken as cash income and not reinvested."}</p>
+              </div>
+              <div>
+                <p className="font-semibold text-[#1d1d1f] mb-1">7. Unrealized Gain</p>
+                <p>Unrealized Gain = Portfolio Value − Cost Basis. The cost basis is the total amount of money invested (cashback + cash flow + reinvested dividends). The gain comes from both the buy discount and stock price appreciation.</p>
+              </div>
+              <div>
+                <p className="font-semibold text-[#1d1d1f] mb-1">8. Combined Net Worth</p>
+                <p>Combined Net Worth = Property Net Equity + Stock Portfolio Value. This gives you the total wealth picture from both property and stock investments.</p>
+              </div>
+            </div>
           </div>
         )}
 

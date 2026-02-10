@@ -43,6 +43,7 @@ export default function Home() {
 
   // Stock reinvestment state
   const [stockResults, setStockResults] = useState<StockSimulationResult | null>(null);
+  const [lastStockInputs, setLastStockInputs] = useState<StockInputs | null>(null);
 
   const { scenarios, saveScenario, deleteScenario, renameScenario } = useScenarios();
 
@@ -88,6 +89,7 @@ export default function Home() {
     if (!lastInputs || !results) return;
     const stockResult = calculateStockReinvestment(stockInputs, lastInputs, results);
     setStockResults(stockResult);
+    setLastStockInputs(stockInputs);
   }, [lastInputs, results]);
 
   const handleLoadScenario = useCallback((inputs: CalculatorInputs) => {
@@ -321,6 +323,8 @@ export default function Home() {
               <StockResultsPanel
                 stockResults={stockResults}
                 propertyResults={results}
+                stockInputs={lastStockInputs!}
+                purchasePrice={lastInputs?.purchasePrice ?? 500000}
               />
             )}
           </>
