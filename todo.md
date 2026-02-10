@@ -56,3 +56,4 @@
 - [x] Restructure into 3 top-level tabs: Property Investment / Stock Investment / Combined Portfolio
 - [x] "Reinvest to Stock" button switches to Stock Investment tab
 - [x] Build Combined Portfolio tab with merged property + stock data
+- [x] Add line chart to Combined Portfolio tab showing property equity, stock value, and total net worth over 30 years

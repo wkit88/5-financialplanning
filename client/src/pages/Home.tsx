@@ -505,6 +505,23 @@ export default function Home() {
 
 /* ========== Combined Portfolio View ========== */
 import { formatNumber } from "@/lib/calculator";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title as ChartTitle,
+  Tooltip as ChartTooltip,
+  Legend as ChartLegend,
+  Filler,
+} from "chart.js";
+import { Line } from "react-chartjs-2";
+
+ChartJS.register(
+  CategoryScale, LinearScale, PointElement, LineElement,
+  ChartTitle, ChartTooltip, ChartLegend, Filler
+);
 
 function CombinedPortfolioView({
   propertyResults,
@@ -595,6 +612,117 @@ function CombinedPortfolioView({
             <p className="text-[20px] font-semibold text-[#5856d6]">{p30.propertiesOwned}</p>
             <p className="text-[12px] text-[#86868b] mt-1">Total assets: RM {formatNumber(Math.round(p30.totalAssetValue))}</p>
           </div>
+        </div>
+      </div>
+
+      {/* Combined Growth Chart */}
+      <div className="apple-card p-5 md:p-6">
+        <h3 className="text-[16px] font-semibold text-[#1d1d1f] mb-1">Portfolio Growth Over Time</h3>
+        <p className="text-[13px] text-[#86868b] mb-4">Property equity, stock value, and combined net worth across 30 years.</p>
+        <div className="h-[360px] md:h-[420px]">
+          <Line
+            data={{
+              labels: stockResults.yearlyData.map((d) => String(d.calendarYear)),
+              datasets: [
+                {
+                  label: "Combined Net Worth",
+                  data: stockResults.yearlyData.map((d) => d.combinedNetWorth),
+                  borderColor: "#5856d6",
+                  backgroundColor: "rgba(88, 86, 214, 0.06)",
+                  borderWidth: 3,
+                  fill: true,
+                  tension: 0.4,
+                  pointRadius: 0,
+                  pointHoverRadius: 6,
+                  pointHoverBackgroundColor: "#5856d6",
+                  order: 0,
+                },
+                {
+                  label: "Stock Portfolio",
+                  data: stockResults.yearlyData.map((d) => d.stockPortfolioValue),
+                  borderColor: "#34c759",
+                  backgroundColor: "rgba(52, 199, 89, 0.04)",
+                  borderWidth: 2.5,
+                  fill: true,
+                  tension: 0.4,
+                  pointRadius: 0,
+                  pointHoverRadius: 5,
+                  pointHoverBackgroundColor: "#34c759",
+                  order: 1,
+                },
+                {
+                  label: "Property Equity",
+                  data: stockResults.yearlyData.map((d) => d.propertyNetEquity),
+                  borderColor: "#0071e3",
+                  backgroundColor: "rgba(0, 113, 227, 0.04)",
+                  borderWidth: 2.5,
+                  fill: true,
+                  tension: 0.4,
+                  pointRadius: 0,
+                  pointHoverRadius: 5,
+                  pointHoverBackgroundColor: "#0071e3",
+                  order: 2,
+                },
+              ],
+            }}
+            options={{
+              responsive: true,
+              maintainAspectRatio: false,
+              interaction: {
+                mode: "index" as const,
+                intersect: false,
+              },
+              plugins: {
+                title: { display: false },
+                legend: {
+                  position: "top" as const,
+                  align: "center" as const,
+                  labels: {
+                    font: { family: "-apple-system, BlinkMacSystemFont, 'Inter', sans-serif", size: 12, weight: 500 },
+                    color: "#86868b",
+                    padding: 20,
+                    usePointStyle: true,
+                    pointStyleWidth: 8,
+                    boxHeight: 8,
+                  },
+                },
+                tooltip: {
+                  mode: "index" as const,
+                  intersect: false,
+                  backgroundColor: "rgba(29, 29, 31, 0.95)",
+                  titleFont: { family: "-apple-system, BlinkMacSystemFont, 'Inter', sans-serif", size: 13, weight: "bold" as const },
+                  bodyFont: { family: "-apple-system, BlinkMacSystemFont, 'Inter', sans-serif", size: 12 },
+                  padding: 14,
+                  cornerRadius: 10,
+                  displayColors: true,
+                  boxPadding: 4,
+                  callbacks: {
+                    label: (ctx: any) => `${ctx.dataset.label}: RM ${formatNumber(ctx.raw.toFixed(0))}`,
+                  },
+                },
+              },
+              scales: {
+                x: {
+                  grid: { display: false },
+                  border: { display: false },
+                  ticks: {
+                    font: { family: "-apple-system, BlinkMacSystemFont, 'Inter', sans-serif", size: 11 },
+                    color: "#86868b",
+                    maxRotation: 45,
+                  },
+                },
+                y: {
+                  grid: { color: "rgba(0,0,0,0.04)" },
+                  border: { display: false },
+                  ticks: {
+                    font: { family: "-apple-system, BlinkMacSystemFont, 'Inter', sans-serif", size: 11 },
+                    color: "#86868b",
+                    callback: (v: any) => "RM " + formatNumber(Number(v)),
+                  },
+                },
+              },
+            }}
+          />
         </div>
       </div>
 

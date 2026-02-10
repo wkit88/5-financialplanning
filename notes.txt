@@ -1,6 +1,6 @@
-The Cash Flow & Cashback Summary table renders correctly below the property charts.
-The "Reinvest to Stock" button is only shown when hasUserCalculated is true (i.e., after user clicks Calculate).
-The default calculation on mount does NOT set hasUserCalculated, so the button won't appear until user clicks Calculate.
-This is intentional - user must explicitly calculate before seeing the reinvest button.
-
-Need to click "Calculate My Property Plan" to see the Reinvest to Stock button.
+Combined Portfolio tab verified:
+- Portfolio Growth Over Time chart renders correctly
+- Shows 3 lines: Combined Net Worth (purple), Stock Portfolio (green), Property Equity (blue)
+- Chart has proper legend, RM formatting on Y-axis, year labels on X-axis
+- Positioned between 30-Year Wealth Breakdown and Year-by-Year Combined Summary table
+- All 7 vitest tests pass, no TypeScript errors
