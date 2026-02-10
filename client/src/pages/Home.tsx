@@ -7,6 +7,18 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useLocation } from "wouter";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { trpc } from "@/lib/trpc";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import InputPanel, { type InputPanelRef } from "@/components/InputPanel";
 import ResultsPanel from "@/components/ResultsPanel";
 import StockInputPanel from "@/components/StockInputPanel";
@@ -24,12 +36,16 @@ import {
 } from "@/lib/calculator";
 import { useScenarios, type SavedScenario } from "@/hooks/useScenarios";
 import { toast } from "sonner";
-import { Bookmark, Sparkles, X, Home as HomeIcon, TrendingUp, PieChart } from "lucide-react";
+import { Bookmark, Sparkles, X, Home as HomeIcon, TrendingUp, PieChart, Save, ArrowLeft } from "lucide-react";
 
 type MainTab = "property" | "stock" | "combined";
 
 export default function Home() {
+  const [, navigate] = useLocation();
+  const { isAuthenticated } = useAuth();
   const [activeMainTab, setActiveMainTab] = useState<MainTab>("property");
+  const [showPortfolioSaveDialog, setShowPortfolioSaveDialog] = useState(false);
+  const [portfolioName, setPortfolioName] = useState("");
   const [results, setResults] = useState<FullSimulationResult | null>(null);
   const [lastInputs, setLastInputs] = useState<CalculatorInputs | null>(null);
   const [externalInputs, setExternalInputs] = useState<CalculatorInputs | null>(null);
@@ -164,6 +180,40 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
+  // Portfolio save mutation
+  const savePortfolioMutation = trpc.portfolio.create.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Portfolio "${portfolioName.trim()}" saved!`);
+      setShowPortfolioSaveDialog(false);
+      setPortfolioName("");
+      navigate(`/portfolio/${data.id}`);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleSaveAsPortfolio = useCallback(() => {
+    if (!portfolioName.trim() || !lastInputs || !results) return;
+    const summary: Record<string, number> = {
+      purchasePrice: lastInputs.purchasePrice,
+      equity10: results.results10.netEquity,
+      equity20: results.results20.netEquity,
+      equity30: results.results30.netEquity,
+      properties: results.results30.propertiesOwned,
+    };
+    if (stockResults) {
+      summary.stockValue30 = stockResults.stock30Year.portfolioValue;
+      summary.combined30 = results.results30.netEquity + stockResults.stock30Year.portfolioValue;
+    }
+    savePortfolioMutation.mutate({
+      name: portfolioName.trim(),
+      propertyInputs: lastInputs,
+      stockInputs: lastStockInputs ?? undefined,
+      propertyResults: results,
+      stockResults: stockResults ?? undefined,
+      summary,
+    });
+  }, [portfolioName, lastInputs, results, lastStockInputs, stockResults, savePortfolioMutation, navigate]);
+
   const aiIsLoading = aiStatus === "loading";
   const aiIsReady = aiStatus === "ready";
 
@@ -179,6 +229,13 @@ export default function Home() {
       <header className="bg-white border-b border-[#e5e5ea]">
         <div className="container flex items-center justify-between py-4">
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate("/")}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-[#86868b] hover:text-[#1d1d1f] hover:bg-[#f5f5f7] transition-colors"
+              title="Back to Portfolios"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
             <div className="w-8 h-8 rounded-[8px] bg-[#0071e3] flex items-center justify-center">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
@@ -190,10 +247,12 @@ export default function Home() {
                 PropertyLab
               </h1>
               <p className="text-[12px] text-[#86868b] leading-tight">
-                Net Equity Simulator
+                Portfolio Simulator
               </p>
             </div>
           </div>
+
+          <div className="flex items-center gap-2">
 
           {/* AI Financial Planner Button — in header */}
           <button
@@ -238,6 +297,19 @@ export default function Home() {
               </span>
             )}
           </button>
+
+            {/* Save as Portfolio Button */}
+            {isAuthenticated && hasUserCalculated && results && lastInputs && (
+              <button
+                onClick={() => setShowPortfolioSaveDialog(true)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] text-[13px] font-medium text-[#34c759] bg-[#34c759]/5 border border-[#34c759]/15 hover:bg-[#34c759]/10 transition-all duration-200 shrink-0"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Save Portfolio</span>
+                <span className="sm:hidden">Save</span>
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -499,6 +571,46 @@ export default function Home() {
           </p>
         </div>
       </footer>
+
+      {/* Save as Portfolio Dialog */}
+      <Dialog open={showPortfolioSaveDialog} onOpenChange={setShowPortfolioSaveDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-[18px] font-semibold text-[#1d1d1f]">Save as Portfolio</DialogTitle>
+          </DialogHeader>
+          <p className="text-[14px] text-[#86868b] mt-1">
+            Save your current property{stockResults ? " and stock" : ""} analysis as a portfolio for future reference.
+          </p>
+          <Input
+            value={portfolioName}
+            onChange={(e) => setPortfolioName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && portfolioName.trim()) handleSaveAsPortfolio();
+            }}
+            placeholder="e.g. Conservative Growth Plan"
+            className="mt-3"
+            autoFocus
+          />
+          <div className="mt-2 p-3 bg-[#f5f5f7] rounded-lg text-[12px] text-[#86868b] space-y-1">
+            <p>Property: <strong className="text-[#1d1d1f]">RM {results ? Math.round(results.results30.netEquity).toLocaleString() : 0}</strong> equity at 30 years</p>
+            {stockResults && (
+              <p>Stock: <strong className="text-[#34c759]">RM {Math.round(stockResults.stock30Year.portfolioValue).toLocaleString()}</strong> portfolio at 30 years</p>
+            )}
+          </div>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setShowPortfolioSaveDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-[#34c759] hover:bg-[#2db84e] text-white"
+              disabled={!portfolioName.trim() || savePortfolioMutation.isPending}
+              onClick={handleSaveAsPortfolio}
+            >
+              {savePortfolioMutation.isPending ? "Saving..." : "Save Portfolio"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

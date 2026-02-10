@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { bigint, int, json, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -25,4 +25,27 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+/**
+ * Saved portfolios — stores a complete property + stock analysis snapshot.
+ * All inputs and computed results are stored as JSON for flexibility.
+ */
+export const portfolios = mysqlTable("portfolios", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  /** Property calculator inputs */
+  propertyInputs: json("propertyInputs").notNull(),
+  /** Stock calculator inputs */
+  stockInputs: json("stockInputs"),
+  /** Full property simulation result */
+  propertyResults: json("propertyResults").notNull(),
+  /** Stock simulation result (null if stock not calculated) */
+  stockResults: json("stockResults"),
+  /** Quick-access summary metrics stored as JSON */
+  summary: json("summary").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Portfolio = typeof portfolios.$inferSelect;
+export type InsertPortfolio = typeof portfolios.$inferInsert;

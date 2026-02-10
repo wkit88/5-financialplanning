@@ -57,3 +57,11 @@
 - [x] "Reinvest to Stock" button switches to Stock Investment tab
 - [x] Build Combined Portfolio tab with merged property + stock data
 - [x] Add line chart to Combined Portfolio tab showing property equity, stock value, and total net worth over 30 years
+- [x] Create database schema for portfolios table (stores property + stock inputs and results)
+- [x] Create tRPC procedures for portfolio CRUD (list, create, get, delete, rename)
+- [x] Build Portfolio List page as main landing page showing saved portfolios
+- [x] Add "Add New Portfolio" button that navigates to the simulator
+- [x] Update simulator with "Save as Portfolio" flow after completing analysis
+- [x] Add portfolio detail/view page to review saved portfolio data
+- [x] Update App.tsx routing: / = portfolio list, /simulator = simulator page
+- [x] Write vitest for portfolio tRPC procedures
