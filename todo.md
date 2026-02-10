@@ -43,3 +43,11 @@
 - [x] Add explanation note: tool assumes same price, market value, and financial assumptions for all properties
 - [x] Update calculator types and logic for new inputs
 - [x] Update ResultsPanel, CompareScenarios, SavedScenarios for new field names
+- [x] Pass stock results and inputs to AIChatPanel from Home.tsx
+- [x] Update AIChatPanel context builder to include stock portfolio data
+- [x] Update AI system prompt to analyze combined property + stock portfolio
+- [x] Add stock-related recommendation chips
+- [x] Re-trigger AI analysis when stock results are calculated
+- [x] Include combined net worth, stock portfolio value, dividends in AI context
+- [x] Update goal-based reverse planner to consider stock portfolio adjustments
+- [x] Add vitest for stock portfolio data in AI system prompt

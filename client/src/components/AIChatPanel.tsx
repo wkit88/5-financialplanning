@@ -4,6 +4,7 @@
  * Includes goal-based reverse planner mode.
  * Exposed via ref so parent can trigger analysis externally.
  * Reports loading/ready status to parent via onStatusChange callback.
+ * Integrates both property AND stock portfolio data for comprehensive analysis.
  */
 
 import {
@@ -15,7 +16,12 @@ import {
   useImperativeHandle,
 } from "react";
 import { trpc } from "@/lib/trpc";
-import type { FullSimulationResult, CalculatorInputs } from "@/lib/calculator";
+import type {
+  FullSimulationResult,
+  CalculatorInputs,
+  StockSimulationResult,
+  StockInputs,
+} from "@/lib/calculator";
 import { formatNumber, calculateTenure } from "@/lib/calculator";
 import { Sparkles, Send, RotateCcw, Target } from "lucide-react";
 import { Streamdown } from "streamdown";
@@ -28,19 +34,28 @@ type Message = {
 export type AIStatus = "idle" | "loading" | "ready" | "error";
 
 export interface AIChatPanelRef {
-  triggerAnalysis: (inputs: CalculatorInputs, results: FullSimulationResult) => void;
+  triggerAnalysis: (
+    inputs: CalculatorInputs,
+    results: FullSimulationResult,
+    stockInputs?: StockInputs | null,
+    stockResults?: StockSimulationResult | null
+  ) => void;
 }
 
 interface AIChatPanelProps {
   results: FullSimulationResult | null;
   inputs: CalculatorInputs | null;
+  stockResults?: StockSimulationResult | null;
+  stockInputs?: StockInputs | null;
   onStatusChange?: (status: AIStatus) => void;
   isSlideIn?: boolean;
 }
 
 function buildContextMessage(
   inputs: CalculatorInputs,
-  results: FullSimulationResult
+  results: FullSimulationResult,
+  stockInputs?: StockInputs | null,
+  stockResults?: StockSimulationResult | null
 ): string {
   const loanTenure = calculateTenure(inputs.age);
   const monthlyRate = (inputs.interestRate / 100) / 12;
@@ -55,9 +70,9 @@ function buildContextMessage(
   const belowMV = inputs.currentMarketValue > inputs.purchasePrice;
   const discountPct = belowMV ? ((1 - inputs.purchasePrice / inputs.currentMarketValue) * 100).toFixed(1) : "0";
 
-  return `Here is my current property investment simulation:
+  let msg = `Here is my current investment simulation:
 
-**Input Parameters:**
+**Property Input Parameters:**
 - Purchase Price: RM ${formatNumber(inputs.purchasePrice)}
 - Current Market Value: RM ${formatNumber(inputs.currentMarketValue)}
 - Below Market Value: ${belowMV ? `Yes (${discountPct}% discount)` : "No"}
@@ -72,7 +87,7 @@ function buildContextMessage(
 - Age: ${inputs.age} → Loan Tenure: ${loanTenure} years
 - Monthly Expense/Property: RM ${formatNumber(monthlyExpense.toFixed(0))} (${inputs.expenseType === "fixed" ? "fixed" : `${inputs.expenseValue}% of instalment`})
 
-**Key Results:**
+**Property Key Results:**
 - 10-Year Net Equity: RM ${formatNumber(results.results10.netEquity.toFixed(0))}
 - 20-Year Net Equity: RM ${formatNumber(results.results20.netEquity.toFixed(0))}
 - 30-Year Net Equity: RM ${formatNumber(results.results30.netEquity.toFixed(0))}
@@ -83,9 +98,75 @@ function buildContextMessage(
 - Market Value/Property: RM ${formatNumber(results.marketValue.toFixed(0))}
 - 30-Year Cumulative Cash Flow: RM ${formatNumber(results.results30.cumulativeCashFlow.toFixed(0))}
 - 30-Year Total Asset Value: RM ${formatNumber(results.results30.totalAssetValue.toFixed(0))}
-- 30-Year Total Loan Balance: RM ${formatNumber(results.results30.totalLoanBalance.toFixed(0))}
+- 30-Year Total Loan Balance: RM ${formatNumber(results.results30.totalLoanBalance.toFixed(0))}`;
+
+  // Append stock portfolio data if available
+  if (stockInputs && stockResults) {
+    const buyPrice = stockInputs.stockDiscount > 0
+      ? `at ${stockInputs.stockDiscount}% discount (below market value)`
+      : "at market price";
+
+    msg += `
+
+---
+
+**Stock Reinvestment Portfolio:**
+The user is also reinvesting property cash flow and mortgage cashback into high-dividend stocks.
+
+**Stock Input Parameters:**
+- Stock Dividend Yield: ${stockInputs.stockDividendYield}%
+- Stock Buy Discount: ${stockInputs.stockDiscount}% below market value
+- Stock Appreciation Rate: ${stockInputs.stockAppreciation}% per year
+- DRIP (Dividend Reinvestment): ${stockInputs.reinvestDividends ? "Enabled — dividends are reinvested to buy more shares" : "Disabled — dividends taken as cash"}
+- Buying stocks ${buyPrice}
+- Cashback per Property: RM ${formatNumber(cashback)} (invested as lump sum when each property is purchased)
+
+**Stock Portfolio Results:**
+- 10-Year Stock Portfolio Value: RM ${formatNumber(stockResults.stock10Year.portfolioValue.toFixed(0))}
+- 10-Year Total Dividends: RM ${formatNumber(stockResults.stock10Year.totalDividends.toFixed(0))}
+- 10-Year Total Invested: RM ${formatNumber(stockResults.stock10Year.totalInvested.toFixed(0))}
+- 20-Year Stock Portfolio Value: RM ${formatNumber(stockResults.stock20Year.portfolioValue.toFixed(0))}
+- 20-Year Total Dividends: RM ${formatNumber(stockResults.stock20Year.totalDividends.toFixed(0))}
+- 20-Year Total Invested: RM ${formatNumber(stockResults.stock20Year.totalInvested.toFixed(0))}
+- 30-Year Stock Portfolio Value: RM ${formatNumber(stockResults.stock30Year.portfolioValue.toFixed(0))}
+- 30-Year Total Dividends: RM ${formatNumber(stockResults.stock30Year.totalDividends.toFixed(0))}
+- 30-Year Total Invested: RM ${formatNumber(stockResults.stock30Year.totalInvested.toFixed(0))}`;
+
+    // Add combined net worth from the last available year
+    const lastYear = stockResults.yearlyData[stockResults.yearlyData.length - 1];
+    if (lastYear) {
+      msg += `
+
+**Combined Net Worth (Property + Stock):**
+- 30-Year Combined Net Worth: RM ${formatNumber(lastYear.combinedNetWorth.toFixed(0))}
+- 30-Year Property Net Equity: RM ${formatNumber(lastYear.propertyNetEquity.toFixed(0))}
+- 30-Year Stock Portfolio Value: RM ${formatNumber(lastYear.stockPortfolioValue.toFixed(0))}
+- 30-Year Unrealized Stock Gain: RM ${formatNumber(lastYear.stockUnrealizedGain.toFixed(0))}
+- 30-Year Cumulative Dividends: RM ${formatNumber(lastYear.cumulativeDividends.toFixed(0))}`;
+
+      // Add 10-year and 20-year combined snapshots
+      const year10 = stockResults.yearlyData.find(d => d.year === 10);
+      const year20 = stockResults.yearlyData.find(d => d.year === 20);
+      if (year10) {
+        msg += `
+- 10-Year Combined Net Worth: RM ${formatNumber(year10.combinedNetWorth.toFixed(0))}`;
+      }
+      if (year20) {
+        msg += `
+- 20-Year Combined Net Worth: RM ${formatNumber(year20.combinedNetWorth.toFixed(0))}`;
+      }
+    }
+
+    msg += `
+
+Please analyze my COMBINED investment plan (property + stock portfolio) and provide your professional assessment covering both asset classes, diversification benefits, and overall wealth-building strategy.`;
+  } else {
+    msg += `
 
 Please analyze my property investment plan and provide your professional assessment.`;
+  }
+
+  return msg;
 }
 
 // Goal-based reverse planner quick prompts
@@ -96,7 +177,7 @@ const GOAL_PROMPTS = [
 ];
 
 const AIChatPanel = forwardRef<AIChatPanelRef, AIChatPanelProps>(
-  ({ results, inputs, onStatusChange, isSlideIn = false }, ref) => {
+  ({ results, inputs, stockResults, stockInputs, onStatusChange, isSlideIn = false }, ref) => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [input, setInput] = useState("");
@@ -139,8 +220,13 @@ const AIChatPanel = forwardRef<AIChatPanelRef, AIChatPanelProps>(
 
     // Expose trigger method to parent
     useImperativeHandle(ref, () => ({
-      triggerAnalysis: (newInputs: CalculatorInputs, newResults: FullSimulationResult) => {
-        const contextMsg = buildContextMessage(newInputs, newResults);
+      triggerAnalysis: (
+        newInputs: CalculatorInputs,
+        newResults: FullSimulationResult,
+        newStockInputs?: StockInputs | null,
+        newStockResults?: StockSimulationResult | null
+      ) => {
+        const contextMsg = buildContextMessage(newInputs, newResults, newStockInputs, newStockResults);
         const userMessage: Message = { role: "user", content: contextMsg };
         setMessages([userMessage]);
         setSuggestions([]);
@@ -195,26 +281,26 @@ const AIChatPanel = forwardRef<AIChatPanelRef, AIChatPanelProps>(
 
     const handleNewAnalysis = useCallback(() => {
       if (!results || !inputs) return;
-      const contextMsg = buildContextMessage(inputs, results);
+      const contextMsg = buildContextMessage(inputs, results, stockInputs, stockResults);
       const userMessage: Message = { role: "user", content: contextMsg };
       setMessages([userMessage]);
       setSuggestions([]);
       setShowGoalPlanner(false);
       updateStatus("loading");
       chatMutation.mutate({ messages: [userMessage] });
-    }, [results, inputs, chatMutation, updateStatus]);
+    }, [results, inputs, stockInputs, stockResults, chatMutation, updateStatus]);
 
     const handleGoalSubmit = useCallback(
       (goal: string) => {
         if (!goal.trim() || !results || !inputs) return;
-        const contextMsg = buildContextMessage(inputs, results);
+        const contextMsg = buildContextMessage(inputs, results, stockInputs, stockResults);
         const goalMessage = `${contextMsg}
 
 ---
 
 **MY GOAL:** ${goal.trim()}
 
-Based on my current simulation above, please reverse-engineer and suggest the optimal input parameters I should use to achieve this goal. Tell me specifically what I should change (purchase price, number of properties, appreciation rate, rental yield, loan type, purchase interval, etc.) and explain why. Show me the expected outcome with your suggested changes.`;
+Based on my current simulation above, please reverse-engineer and suggest the optimal input parameters I should use to achieve this goal. Tell me specifically what I should change (purchase price, number of properties, appreciation rate, rental yield, loan amount, purchase interval, stock allocation, dividend yield targets, etc.) and explain why. Show me the expected outcome with your suggested changes.${stockResults ? " Consider both property and stock portfolio adjustments." : ""}`;
 
         const userMessage: Message = { role: "user", content: goalMessage };
         setMessages([userMessage]);
@@ -224,7 +310,7 @@ Based on my current simulation above, please reverse-engineer and suggest the op
         updateStatus("loading");
         chatMutation.mutate({ messages: [userMessage] });
       },
-      [results, inputs, chatMutation, updateStatus]
+      [results, inputs, stockInputs, stockResults, chatMutation, updateStatus]
     );
 
     const displayMessages = messages.filter((m) => m.role !== "system");

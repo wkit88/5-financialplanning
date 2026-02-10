@@ -131,6 +131,34 @@ Your plan is solid.
     expect(callArgs.messages[1].content).toBe("Hello");
   });
 
+  it("system prompt includes stock portfolio analysis guidance", async () => {
+    mockInvokeLLM.mockResolvedValueOnce(
+      makeLLMResponse("Combined analysis of property and stock portfolio.")
+    );
+
+    const ctx = createPublicContext();
+    const caller = appRouter.createCaller(ctx);
+
+    await caller.ai.chat({
+      messages: [
+        {
+          role: "user",
+          content: "Here is my current investment simulation: Stock Reinvestment Portfolio: dividend yield 6%, DRIP enabled.",
+        },
+      ],
+    });
+
+    expect(mockInvokeLLM).toHaveBeenCalledTimes(1);
+    const callArgs = mockInvokeLLM.mock.calls[0][0];
+    const systemPrompt = callArgs.messages[0].content;
+    // System prompt should mention stock portfolio analysis
+    expect(systemPrompt).toContain("Stock reinvestment portfolio data");
+    expect(systemPrompt).toContain("COMBINED investment plan");
+    expect(systemPrompt).toContain("Stock Reinvestment Analysis");
+    expect(systemPrompt).toContain("Combined Wealth Assessment");
+    expect(systemPrompt).toContain("dividend reinvestment");
+  });
+
   it("throws error when LLM returns no content", async () => {
     mockInvokeLLM.mockResolvedValueOnce({
       choices: [{ message: { content: null } }],

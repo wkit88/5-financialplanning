@@ -75,10 +75,11 @@ export default function Home() {
     setHasUserCalculated(true);
     // Reset stock results when property plan changes
     setStockResults(null);
+    setLastStockInputs(null);
 
-    // Auto-trigger AI analysis in background
+    // Auto-trigger AI analysis in background (property only, no stock yet)
     setTimeout(() => {
-      aiChatRef.current?.triggerAnalysis(inputs, result);
+      aiChatRef.current?.triggerAnalysis(inputs, result, null, null);
       setAiGlowPulse(true);
       setTimeout(() => setAiGlowPulse(false), 4000);
     }, 100);
@@ -89,6 +90,13 @@ export default function Home() {
     const stockResult = calculateStockReinvestment(stockInputs, lastInputs, results);
     setStockResults(stockResult);
     setLastStockInputs(stockInputs);
+
+    // Re-trigger AI analysis with combined property + stock data
+    setTimeout(() => {
+      aiChatRef.current?.triggerAnalysis(lastInputs, results, stockInputs, stockResult);
+      setAiGlowPulse(true);
+      setTimeout(() => setAiGlowPulse(false), 4000);
+    }, 100);
   }, [lastInputs, results]);
 
   const handleLoadScenario = useCallback((inputs: CalculatorInputs) => {
@@ -102,7 +110,7 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: "smooth" });
 
     setTimeout(() => {
-      aiChatRef.current?.triggerAnalysis(inputs, result);
+      aiChatRef.current?.triggerAnalysis(inputs, result, null, null);
       setAiGlowPulse(true);
       setTimeout(() => setAiGlowPulse(false), 4000);
     }, 100);
@@ -402,6 +410,8 @@ export default function Home() {
             ref={aiChatRef}
             results={results}
             inputs={lastInputs}
+            stockResults={stockResults}
+            stockInputs={lastStockInputs}
             onStatusChange={setAiStatus}
             isSlideIn={true}
           />
